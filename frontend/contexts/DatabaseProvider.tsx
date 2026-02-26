@@ -14,10 +14,19 @@ export function DatabaseProvider({ children }: LayoutProps) {
   
   useEffect(() => {
     async function init() {
-      // Open database connection -> Create tables if they don't exist -> Store DB instance in state
-      const database = await SQLite.openDatabaseAsync('safecycle.db');
-      await database.execAsync(createAllTables);
-      setDb(database);
+      
+      // Try-Catch to open the database and create tables if they don't exist
+      try {
+        const database = await SQLite.openDatabaseAsync('safecycle.db');
+        await database.execAsync(createAllTables);
+        setDb(database);
+      } catch (error) {
+        console.error("Failed to initialize database", error);
+
+      // Finally block to ensure we set the provider as ready even if there was an error
+      } finally {
+        setReady(true);
+      }
     }
     init();
   }, [])

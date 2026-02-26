@@ -4,10 +4,10 @@ import { Stack } from "expo-router";
 
 export default function RootLayout() {
   return(
-    <Stack>
-      <DatabaseProvider>
+    <DatabaseProvider>
+      <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </DatabaseProvider>
-    </Stack>
+      </Stack>
+    </DatabaseProvider>
   )
 }

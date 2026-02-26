@@ -5,12 +5,14 @@ import { DatabaseContext } from "@/contexts/DatabaseProvider";
 
 type TableRow = { name: string };
 type CountRow = { count: number };
+type DatabaseFileRow = { file: string };
 
 export default function DbDebugScreen() {
   const db = useContext(DatabaseContext);
   const [loading, setLoading] = useState<boolean>(false);
   const [tables, setTables] = useState<string[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [dbFilePath, setDbFilePath] = useState<string>("");
   const [error, setError] = useState<string>("");
 
   const runHealthCheck = async () => {
@@ -23,6 +25,10 @@ export default function DbDebugScreen() {
     setError("");
 
     try {
+      const dbFileRow = await db.getFirstAsync<DatabaseFileRow>(`
+        SELECT file FROM pragma_database_list WHERE name = 'main';
+      `);
+
       const tableRows = await db.getAllAsync<TableRow>(`
         SELECT name
         FROM sqlite_master
@@ -40,6 +46,7 @@ export default function DbDebugScreen() {
 
       setTables(tableNames);
       setCounts(nextCounts);
+      setDbFilePath(dbFileRow?.file ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown DB health-check error");
     } finally {
@@ -60,6 +67,7 @@ export default function DbDebugScreen() {
           <Text style={styles.sectionTitle}>Status</Text>
           <Divider style={styles.divider} />
           <Text>{db ? "Database connected" : "Database not ready"}</Text>
+          <Text>DB File: {dbFilePath || "Not available yet"}</Text>
           {error ? <Text style={styles.error}>Error: {error}</Text> : null}
           <Button mode="contained" style={styles.button} onPress={runHealthCheck} loading={loading}>
             Run Health Check
