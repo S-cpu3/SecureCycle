@@ -35,3 +35,8 @@ SafeCycle is a privacy focused mobile app designed for tracking menstrual cycles
 - Home Page
 - History (Overview user data)
 - Profile (User, Pass, Scannable QR)
+
+## Note(s):
+- App runtime entry is `frontend/package.json` with `"main": "expo-router/entry"`.
+- The app boots Expo Router (not `App.jsx` / `index.jsx`).
+- Root navigation starts in `frontend/app/_layout.tsx`, then loads tabs from `frontend/app/(tabs)/_layout.tsx`.
