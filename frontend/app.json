@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sasanda.biometricauth",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "This app uses Face ID to securely log you into your account."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,6 +30,10 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Allow SafeCycle to use Face ID." }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
