@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from "react-native";
 import { Button, Divider, Text, Card, List } from 'react-native-paper';
+import { theme } from '@/theme/theme';
 
 export default function Profile() {
   return (
@@ -82,29 +83,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#f6f6f6"
+    backgroundColor: theme.colors.background
   },
   header: {
     fontSize: 36,
     fontWeight: "bold",
     marginBottom: 25,
+    color: theme.colors.text
   },
   card: {
     marginBottom: 20,
     borderRadius: 20,
-    elevation: 4
+    elevation: 4,
+    backgroundColor: theme.colors.surface
   },
   groupTitle: {
     fontSize: 20,
     fontWeight: "600",
-    marginBottom: 10
+    marginBottom: 10,
+    color: theme.colors.text
   },
   divider: {
     marginBottom: 15
   },
   button: {
     borderRadius: 30,
-    marginBottom: 10
+    marginBottom: 10,
+    backgroundColor: theme.colors.primary
   }
 });
 

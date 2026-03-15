@@ -1,18 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
-import { Button } from 'react-native-paper';
-import * as LocalAuthentication from 'expo-local-authentication';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { theme } from '@/theme/theme';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, Alert } from "react-native";
+import { Button } from "react-native-paper";
+import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { theme } from "@/theme/theme";
+import { useRouter } from "expo-router";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  runOnJS,
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 
-const PIN_KEY = 'user_pin';
+const PIN_KEY = "user_pin";
+
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function LockScreen() {
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState("");
   const [storedPin, setStoredPin] = useState<string | null>(null);
   const [isPinSet, setIsPinSet] = useState(false);
   const router = useRouter();
+
+  const lockScreenOpacity = useSharedValue(1);
+  const gradientOpacity = useSharedValue(0);
+  const gradientScale = useSharedValue(0);
 
   useEffect(() => {
     const loadPin = async () => {
@@ -31,23 +45,44 @@ export default function LockScreen() {
     }
   };
 
+  const handleUnlock = () => {
+    lockScreenOpacity.value = withTiming(0, {
+      duration: 500,
+      easing: Easing.inOut(Easing.ease),
+    });
+    gradientOpacity.value = withTiming(1, {
+      duration: 500,
+      easing: Easing.inOut(Easing.ease),
+    });
+    gradientScale.value = withTiming(1, {
+      duration: 1000,
+      easing: Easing.inOut(Easing.ease),
+    });
+  };
+
+  useEffect(() => {
+    if (gradientScale.value === 1) {
+      runOnJS(router.replace)('/(tabs)');
+    }
+  }, [gradientScale.value]);
+
   const handlePinSubmit = async () => {
     if (isPinSet) {
       if (pin === storedPin) {
-        router.replace('/(tabs)');
+        handleUnlock();
       } else {
-        Alert.alert('Error', 'Incorrect PIN');
-        setPin('');
+        Alert.alert("Error", "Incorrect PIN");
+        setPin("");
       }
     } else {
       if (pin.length === 6) {
         await AsyncStorage.setItem(PIN_KEY, pin);
         setStoredPin(pin);
         setIsPinSet(true);
-        router.replace('/(tabs)');
-        Alert.alert('Success', 'PIN set successfully!');
+        handleUnlock();
+        Alert.alert("Success", "PIN set successfully!");
       } else {
-        Alert.alert('Error', 'PIN must be 6 digits long.');
+        Alert.alert("Error", "PIN must be 6 digits long.");
       }
     }
   };
@@ -55,36 +90,39 @@ export default function LockScreen() {
   const handleBiometricAuth = async () => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     if (!hasHardware) {
-      Alert.alert('Error', 'Biometric hardware not supported');
+      Alert.alert("Error", "Biometric hardware not supported");
       return;
     }
 
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
     if (!isEnrolled) {
-      Alert.alert('Error', 'No biometrics enrolled');
+      Alert.alert("Error", "No biometrics enrolled");
       return;
     }
 
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Authenticate to unlock SafeCycle',
-      fallbackLabel: 'Use PIN',
+      promptMessage: "Authenticate to unlock SafeCycle",
+      fallbackLabel: "Use PIN",
       disableDeviceFallback: false,
     });
 
     if (result.success) {
-      router.replace('/(tabs)');
+      handleUnlock();
     } else {
-      Alert.alert('Authentication Failed', result.error || 'Could not authenticate');
+      Alert.alert(
+        "Authentication Failed",
+        result.error || "Could not authenticate",
+      );
     }
   };
 
   const renderPinInput = () => {
-    const displayPin = pin.padEnd(6, '_');
+    const displayPin = pin.padEnd(6, "_");
     return (
       <View style={styles.pinDisplayContainer}>
-        {displayPin.split('').map((char, index) => (
+        {displayPin.split("").map((char, index) => (
           <Text key={index} style={styles.pinChar}>
-            {char === '_' ? '_' : '*'}
+            {char === "_" ? "_" : "*"}
           </Text>
         ))}
       </View>
@@ -93,10 +131,10 @@ export default function LockScreen() {
 
   const renderNumberPad = () => {
     const numbers = [
-      ['1', '2', '3'],
-      ['4', '5', '6'],
-      ['7', '8', '9'],
-      ['', '0', 'back'],
+      ["1", "2", "3"],
+      ["4", "5", "6"],
+      ["7", "8", "9"],
+      ["", "0", "back"],
     ];
 
     return (
@@ -110,17 +148,17 @@ export default function LockScreen() {
                 style={styles.numberButton}
                 labelStyle={styles.numberButtonLabel}
                 onPress={() => {
-                  if (num === 'back') {
+                  if (num === "back") {
                     setPin((prev) => prev.slice(0, -1));
-                  } else if (num === '') {
+                  } else if (num === "") {
                     handleBiometricAuth();
                   } else {
                     handlePinChange(pin + num);
                   }
                 }}
-                disabled={num === '' && !LocalAuthentication.hasHardwareAsync()} // Disable biometric button if no hardware
+                disabled={num === "" && !LocalAuthentication.hasHardwareAsync()} // Disable biometric button if no hardware
               >
-                {num === 'back' ? '⌫' : num === '' ? ' biometric ' : num}
+                {num === "back" ? "⌫" : num === "" ? " biometric " : num}
               </Button>
             ))}
           </View>
@@ -129,19 +167,39 @@ export default function LockScreen() {
     );
   };
 
+  const lockScreenAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: lockScreenOpacity.value,
+    };
+  });
+
+  const gradientAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: gradientOpacity.value,
+      transform: [{ scale: gradientScale.value }],
+    };
+  });
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{isPinSet ? 'Enter PIN' : 'Set Your PIN'}</Text>
-      {renderPinInput()}
-      {renderNumberPad()}
-      <Button
-        mode="contained"
-        onPress={handlePinSubmit}
-        disabled={pin.length !== 6}
-        style={styles.submitButton}
+      <AnimatedLinearGradient
+        colors={[theme.colors.primary, theme.colors.background]}
+        style={[styles.gradient, gradientAnimatedStyle]}
+      />
+      <Animated.View
+        style={[styles.lockScreenContainer, lockScreenAnimatedStyle]}
       >
-        {isPinSet ? 'Unlock' : 'Set PIN'}
-      </Button>
+        {renderPinInput()}
+        {renderNumberPad()}
+        <Button
+          mode="contained"
+          onPress={handlePinSubmit}
+          disabled={pin.length !== 6}
+          style={styles.submitButton}
+        >
+          {isPinSet ? "Unlock" : "Set PIN"}
+        </Button>
+      </Animated.View>
     </View>
   );
 }
@@ -149,9 +207,22 @@ export default function LockScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: theme.colors.background,
+  },
+  gradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  lockScreenContainer: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 24,
@@ -159,7 +230,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.large * 2,
   },
   pinDisplayContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: theme.spacing.large * 2,
   },
   pinChar: {
@@ -169,22 +240,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderColor: theme.colors.text,
     width: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   numberPad: {
-    width: '80%',
+    width: "80%",
     marginBottom: theme.spacing.medium,
   },
   numberPadRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     marginBottom: theme.spacing.small,
   },
   numberButton: {
     width: 80,
     height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: theme.roundness * 5,
     borderColor: theme.colors.primary,
     borderWidth: 1,
@@ -196,9 +267,8 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: theme.spacing.medium,
-    width: '80%',
+    width: "80%",
     paddingVertical: theme.spacing.small,
     backgroundColor: theme.colors.primary,
   },
 });
-

@@ -1,8 +1,8 @@
-// Imports: React/React Native, Link (Navigate between screens)
 import { View, StyleSheet } from "react-native";
 import { Text } from "react-native-paper";
 import { Link } from "expo-router";
 import CycleTracker from "@/components/CycleTracker";
+import { theme } from "@/theme/theme";
 
 export const metadata = {
   title: "Home",
@@ -15,7 +15,7 @@ export default function Index() {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#3a6486ff",
+        backgroundColor: theme.colors.background,
       }}
     >
       <CycleTracker />
