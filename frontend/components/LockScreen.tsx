@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
+import { Image } from "expo-image";
 import { Button } from "react-native-paper";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,11 +23,13 @@ export default function LockScreen() {
   const [pin, setPin] = useState("");
   const [storedPin, setStoredPin] = useState<string | null>(null);
   const [isPinSet, setIsPinSet] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const router = useRouter();
 
   const lockScreenOpacity = useSharedValue(1);
   const gradientOpacity = useSharedValue(0);
-  const gradientScale = useSharedValue(0);
+  const gradientScale = useSharedValue(0.92);
+  const logoOpacity = useSharedValue(0);
 
   useEffect(() => {
     const loadPin = async () => {
@@ -45,26 +48,40 @@ export default function LockScreen() {
     }
   };
 
+  const navigateToTabs = () => {
+    router.replace("/(tabs)");
+  };
+
   const handleUnlock = () => {
+    if (isUnlocking) {
+      return;
+    }
+    setIsUnlocking(true);
     lockScreenOpacity.value = withTiming(0, {
-      duration: 500,
+      duration: 220,
       easing: Easing.inOut(Easing.ease),
     });
     gradientOpacity.value = withTiming(1, {
-      duration: 500,
+      duration: 120,
       easing: Easing.inOut(Easing.ease),
     });
-    gradientScale.value = withTiming(1, {
-      duration: 1000,
-      easing: Easing.inOut(Easing.ease),
+    logoOpacity.value = withTiming(1, {
+      duration: 140,
+      easing: Easing.out(Easing.ease),
     });
+    gradientScale.value = withTiming(
+      1.04,
+      {
+        duration: 520,
+        easing: Easing.out(Easing.cubic),
+      },
+      (finished) => {
+        if (finished) {
+          runOnJS(navigateToTabs)();
+        }
+      }
+    );
   };
-
-  useEffect(() => {
-    if (gradientScale.value === 1) {
-      runOnJS(router.replace)('/(tabs)');
-    }
-  }, [gradientScale.value]);
 
   const handlePinSubmit = async () => {
     if (isPinSet) {
@@ -180,12 +197,22 @@ export default function LockScreen() {
     };
   });
 
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: logoOpacity.value,
+    };
+  });
+
   return (
     <View style={styles.container}>
       <AnimatedLinearGradient
-        colors={[theme.colors.primary, theme.colors.background]}
-        style={[styles.gradient, gradientAnimatedStyle]}
-      />
+        colors={[theme.colors.primary, theme.colors.secondary, theme.colors.background]}
+        style={[styles.gradientOverlay, gradientAnimatedStyle]}
+      >
+        <Animated.View style={logoAnimatedStyle}>
+          <Image source={require("../assets/images/SafeCycleLogo.png")} style={styles.logo} contentFit="contain" />
+        </Animated.View>
+      </AnimatedLinearGradient>
       <Animated.View
         style={[styles.lockScreenContainer, lockScreenAnimatedStyle]}
       >
@@ -211,12 +238,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: theme.colors.background,
   },
-  gradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
   },
   lockScreenContainer: {
     width: "100%",
@@ -270,5 +295,9 @@ const styles = StyleSheet.create({
     width: "80%",
     paddingVertical: theme.spacing.small,
     backgroundColor: theme.colors.primary,
+  },
+  logo: {
+    width: 110,
+    height: 110,
   },
 });

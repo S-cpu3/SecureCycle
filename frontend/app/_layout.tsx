@@ -6,13 +6,13 @@ import { theme } from "@/theme/theme"
 
 export default function RootLayout() {
   return(
-    <Stack>
-      <PaperProvider theme={theme}>
-        <DatabaseProvider>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </DatabaseProvider>
-      </PaperProvider>
-    </Stack>
+    <PaperProvider theme={theme}>
+      <DatabaseProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </DatabaseProvider>
+    </PaperProvider>
   )
 }

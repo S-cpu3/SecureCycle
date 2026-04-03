@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,10 +8,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import LockScreen from "@/components/LockScreen";
-import { Svg, Circle, Image } from "react-native-svg";
 import { theme } from "@/theme/theme";
-
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 
 export default function Index() {
   const logoY = useSharedValue(0);
@@ -46,17 +44,8 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-        <AnimatedSvg height="200" width="200" viewBox="0 0 100 100">
-          <Circle cx="50" cy="50" r="50" fill={theme.colors.primary} />
-          <Image
-            href="@/assets/images/SafeCycleLogo.svg"
-            width="80"
-            height="80"
-            x="10"
-            y="10"
-          />
-        </AnimatedSvg>
+      <Animated.View style={[styles.logoContainer, styles.logoBadge, logoAnimatedStyle]}>
+        <Image source={require("../assets/images/SafeCycleLogo.png")} style={styles.logoImage} contentFit="contain" />
       </Animated.View>
       <Animated.View
         style={[styles.lockScreenContainer, lockScreenAnimatedStyle]}
@@ -77,6 +66,19 @@ const styles = StyleSheet.create({
   logoContainer: {
     position: "absolute",
     alignItems: "center",
+  },
+  logoBadge: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: theme.colors.primary,
+    overflow: "hidden",
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
   },
   lockScreenContainer: {
     width: "100%",
