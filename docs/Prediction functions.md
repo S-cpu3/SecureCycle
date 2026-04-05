@@ -1,3 +1,5 @@
+# Cycle prediction algorithim
+
 **Calculations/Prediction Algorithm**
 
 *The following list is from a privacy based period Tracking app Peri -- good stuff we can use as a checklist and baseline to cut out the noise of all the other factors :
@@ -15,11 +17,7 @@
 
 -Calculation of the current phase 
 
-___________________________________________________________________________________________________
-
-
-
-
+---
 
 *Research shows many similar apps are innaccurate due to the sheer number of factors that influence cycles. We need to consider all of the following in addition to the baseline.*
 
@@ -45,8 +43,6 @@ ________________________________________________________________________________
 * 50+                 → 30.8 days
 
 **CORE FORMULA (everything derived from this line):**
-
-
 
 *predicted  =  lastPeriodStart + cycleLength*
 
@@ -135,12 +131,9 @@ function getExpectedStdDev(age) {
 
 ```
 
+---
 
-
-
-___________________________________________________________________________________________________
-
-
+## Medical Conditions that effect Cycles
 
 *This is up for debate whether we include every possible condition but very important in improving accuracy* ->
 
@@ -166,12 +159,10 @@ Adjustment: widen std_dev, raise minimum cycle length floor
      ovulation     =  UNRELIABLE — Can't display wto user without OPK/BBT confirmation
      fertile_window =  UNRELIABLE — Must warn user that it is unknown; further research to confirm 
 
-
 **ENDOMETRIOSIS**
 
-
-
 Problem:    cycles are often shorter and heavier, pain is disproportionate
+
 Adjustment: shorten expected cycle slightly, extend period length expectation
 
 * cycle_length  =  min(personalAvg, 27)         → cycles tend to run short
@@ -181,10 +172,7 @@ Adjustment: shorten expected cycle slightly, extend period length expectation
 predicted, ovulation, fertile_window → same formulas as baseline
 pain scoring  →  weight cramping severity higher in symptom calculations
 
-
 **PERIMENOPAUSE**
-
-
 
 Problem:    cycle length becomes erratic, periods may skip entirely
 Adjustment: widen std_dev significantly, skip prediction

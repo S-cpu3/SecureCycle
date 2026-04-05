@@ -1,4 +1,6 @@
 
+# Synmptoms that effect Cycles
+
 **User Profile (baseline data for predictions)**
 
   We need:
@@ -25,8 +27,7 @@ _Intention, birth control method, health conditions should be in their own table
 
   Would make querying cleaner if these columns were added, and we could just AVG(Cycle_length) instead of updating the difference between start_date and end_date
 
-
-___________________________________________________________________________________________________
+---
 
 **User Entries**
 
@@ -53,9 +54,6 @@ const symptomWeight = {
 
 ```
 
-
-
-
 **Key Quotes from Articles:**
 
    - "Menstrual cycle length and variability differed considerably across the reproductive lifespan, from under 20 to above 50 years old. People under 20 years old had menstrual cycles 30.3 days long on average, 1.6 days longer than the 28.7-day average for those 35 to 39 years old. People 40 to 44 and 45 to 49 years old had shorter cycles, averaging 28.2 and 28.4 days, respectively. Those over 50 years old had longer cycles, averaging 30.8 days." _(How cycles Vary...)_
@@ -77,9 +75,7 @@ const symptomWeight = {
 
   - "Furthermore, 82% of women aged 18–44 report using medication compared to 68% of men in the same age group" _(Medication Use Among...)_
 
-
-
-___________________________________________________________________________________________________
+---
 
 Notes 
 
@@ -100,9 +96,7 @@ Notes
 
 * Can explicitly tell the user "add BBT or ovulation tests to improve your fertile window accuracy" rather than silently giving them a less accurate prediction. -- or omit the need for BBT 
 
-___________________________________________________________________________________________________
-
-
+---
 
 Research Links 
 
