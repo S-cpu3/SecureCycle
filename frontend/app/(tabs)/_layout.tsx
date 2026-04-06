@@ -2,6 +2,20 @@ import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { theme } from "@/theme/theme";
 
+/**
+ * Renders the main tab-based navigation layout for the app.
+ *
+ * Configures shared tab and header styling (active tint, background, text color,
+ * and header shadow visibility), and defines three primary tabs:
+ * - `history` (calendar icon)
+ * - `index` (home icon)
+ * - `profile` (person icon)
+ *
+ * Each tab uses a focused/unfocused Ionicons variant and hides the tab title text.
+ * A `db-debug` tab is present in the file but intentionally disabled/commented out.
+ *
+ * @returns The configured `<Tabs />` navigator for the `(tabs)` route group.
+ */
 export default function TabLayout() {
   return(
     <Tabs
@@ -49,6 +63,7 @@ export default function TabLayout() {
         }}
       />
 
+      {/*
       <Tabs.Screen
         name="db-debug"
         options={{
@@ -58,6 +73,7 @@ export default function TabLayout() {
           ),
         }}
       />
+      */}
     </Tabs>
   )
 }
