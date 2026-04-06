@@ -1,4 +1,5 @@
-import React, { createContext, useEffect, useState } from "react";
+import React, { createContext, useEffect, useState } from "react"
+import { createAllTables } from "./schema";
 import * as SQLite from "expo-sqlite";
 
 interface LayoutProps {
@@ -13,16 +14,19 @@ export function DatabaseProvider({ children }: LayoutProps) {
   
   useEffect(() => {
     async function init() {
-      const database = await SQLite.openDatabaseAsync("safecycle.db");
+      
+      // Try-Catch to open the database and create tables if they don't exist
+      try {
+        const database = await SQLite.openDatabaseAsync('safecycle.db');
+        await database.execAsync(createAllTables);
+        setDb(database);
+      } catch (error) {
+        console.error("Failed to initialize database", error);
 
-      await database.execAsync(`
-        CREATE TABLE IF NOT EXISTS cycles (
-          id INTEGER PRIMARY KEY AUTOINCREMENT
-        );
-      `);
-
-      setDb(database);
-      setReady(true);
+      // Finally block to ensure we set the provider as ready even if there was an error
+      } finally {
+        setReady(true);
+      }
     }
     init();
   }, []);

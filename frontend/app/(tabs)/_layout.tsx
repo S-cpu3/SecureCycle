@@ -48,6 +48,16 @@ export default function TabLayout() {
           ) 
         }}
       />
+
+      <Tabs.Screen
+        name="db-debug"
+        options={{
+          title: "",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "bug" : "bug-outline"} size={24} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   )
 }
