@@ -1,5 +1,5 @@
 
-# Synmptoms that effect Cycles
+# Symptoms that effect Cycles
 
 **User Profile (baseline data for predictions)**
 
