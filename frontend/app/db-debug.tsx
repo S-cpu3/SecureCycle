@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, Divider, Text } from "react-native-paper";
 import { DatabaseContext } from "@/contexts/DatabaseProvider";
@@ -15,7 +15,7 @@ export default function DbDebugScreen() {
   const [dbFilePath, setDbFilePath] = useState<string>("");
   const [error, setError] = useState<string>("");
 
-  const runHealthCheck = async () => {
+  const runHealthCheck = useCallback(async () => {
     if (!db) {
       setError("Database context is not ready.");
       return;
@@ -52,11 +52,11 @@ export default function DbDebugScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [db]);
 
   useEffect(() => {
     runHealthCheck();
-  }, [db]);
+  }, [runHealthCheck]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

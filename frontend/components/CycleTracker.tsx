@@ -1,81 +1,92 @@
-import { useState } from "react";
+import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import Entypo from '@expo/vector-icons/Entypo';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
+import Entypo from "@expo/vector-icons/Entypo";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Text } from "react-native-paper";
-
-const MONTHS = [
-  "Janurary",
-  "Feburary",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-]
+import { theme } from "@/theme/theme";
 
 const DIAMETER = 300;
 const RADIUS = DIAMETER / 2;
-const SIZE = 30;
-const DAYS_IN_MONTH = 30;
-const MOOD_DAYS = Array.from({ length: DAYS_IN_MONTH }, (_, i) => ({
-  dom: i,
-  
-}))
-const DAYS = Array.from({ length: DAYS_IN_MONTH }, (_, i) => i + 1);
-const DISTANCE_FROM_EDGE = 15;
-const CENTER_SIZE = 240;
+const CENTER_SIZE = 194;
+const DAY_SIZE = 26;
 
-export default function CycleTracker() {
-  const [mood, setMood] = useState<'ovulating' | 'mensturating' | "">("")
-    const moodText = 
-      mood === "ovulating" ? `Ovulation predicted today` :
-      mood === "mensturating" ? `Menstruation predicted today` : ``
+export type CycleDayStatus = "period" | "fertile" | "ovulation" | "luteal";
+
+export type CycleDay = {
+  day: number;
+  status: CycleDayStatus;
+};
+
+type CycleTrackerProps = {
+  monthLabel: string;
+  dayLabel: string;
+  statusLabel: string;
+  subtitle: string;
+  days: CycleDay[];
+};
+
+const STATUS_STYLES: Record<CycleDayStatus, { backgroundColor: string; color: string; icon: ReactNode }> = {
+  period: {
+    backgroundColor: "rgba(173, 38, 58, 0.95)",
+    color: theme.colors.text,
+    icon: <Entypo name="drop" size={16} color={theme.colors.text} />,
+  },
+  fertile: {
+    backgroundColor: "rgba(219, 69, 123, 0.45)",
+    color: theme.colors.text,
+    icon: <MaterialCommunityIcons name={"star-four-points" as any} size={16} color={theme.colors.text} />,
+  },
+  ovulation: {
+    backgroundColor: theme.colors.secondary,
+    color: theme.colors.background,
+    icon: <MaterialCommunityIcons name="radiology-box" size={16} color={theme.colors.background} />,
+  },
+  luteal: {
+    backgroundColor: "rgba(244, 243, 238, 0.14)",
+    color: theme.colors.text,
+    icon: <MaterialCommunityIcons name="circle-small" size={16} color={theme.colors.text} />,
+  },
+};
+
+export default function CycleTracker({
+  monthLabel,
+  dayLabel,
+  statusLabel,
+  subtitle,
+  days,
+}: CycleTrackerProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.circle}>
-        {DAYS.map((dom, index) => {
-          const angle = (2 * Math.PI * index) / DAYS.length;
-          const x = (RADIUS - DISTANCE_FROM_EDGE) * Math.cos(angle) + RADIUS - SIZE / 2;
-          const y = (RADIUS - DISTANCE_FROM_EDGE) * Math.sin(angle) + RADIUS - SIZE / 2;
+      <View style={styles.outerRing}>
+        {days.map((day, index) => {
+          const angle = (2 * Math.PI * index) / days.length - Math.PI / 2;
+          const distance = RADIUS - 10;
+          const x = distance * Math.cos(angle) + RADIUS - DAY_SIZE / 2;
+          const y = distance * Math.sin(angle) + RADIUS - DAY_SIZE / 2;
+          const status = STATUS_STYLES[day.status];
+
           return (
             <View
-              key={index}
+              key={day.day}
               style={[
-                styles.item,
+                styles.dayNode,
                 {
                   left: x,
                   top: y,
-                }
+                  backgroundColor: status.backgroundColor,
+                },
               ]}
             >
-              { /* 
-                we need conditionally rendered content here, based on if this Day-of-the-Month is a predicted
-                ovulation day or a predicted menstruation day.
-                for now just a static image
-              */ }
-              
-              {
-                index % 2 === 0 ? 
-                <MaterialCommunityIcons name="google-circles" size={24} color="pink" /> :
-                <Entypo name="drop" size={24} color="red" />
-              }
+              {status.icon}
             </View>
-          )
+          );
         })}
 
-        <View style={styles.centerContent}>
-
-          <Text style={styles.monthText}>{MONTHS[new Date().getMonth()]}</Text>
-          <Text style={styles.dateText}>{new Date().getDay().toString()}</Text>
-          <Text style={styles.moodText}>
-            {moodText}
-          </Text>
+        <View style={styles.centerCard}>
+          <Text style={styles.monthText}>{monthLabel}</Text>
+          <Text style={styles.dayText}>{dayLabel}</Text>
+          <Text style={styles.statusText}>{statusLabel}</Text>
+          <Text style={styles.subtitleText}>{subtitle}</Text>
         </View>
       </View>
     </View>
@@ -84,51 +95,66 @@ export default function CycleTracker() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: "center",
+    width: "100%",
     alignItems: "center",
   },
-  circle: {
+  outerRing: {
     width: DIAMETER,
     height: DIAMETER,
     borderRadius: DIAMETER / 2,
-    backgroundColor: "#c98bb9",
-    position: "relative",
+    backgroundColor: "rgba(188, 184, 177, 0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(244, 243, 238, 0.16)",
   },
-  item: {
+  dayNode: {
     position: "absolute",
-    width: SIZE,
-    height: SIZE,
-    borderRadius: SIZE / 2,
-    //backgroundColor: "#6200ee",
+    width: DAY_SIZE,
+    height: DAY_SIZE,
+    borderRadius: DAY_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(244, 243, 238, 0.14)",
   },
-  centerContent: {
+  centerCard: {
     position: "absolute",
     width: CENTER_SIZE,
     height: CENTER_SIZE,
     borderRadius: CENTER_SIZE / 2,
-backgroundColor: "#683257",
-    justifyContent: "center",
-    alignItems: "center",
-
     left: RADIUS - CENTER_SIZE / 2,
     top: RADIUS - CENTER_SIZE / 2,
-  },
-  moodText: {
-    fontFamily: "Sans serif",
-    color: "#f0f0f0"
+    backgroundColor: "rgba(38, 12, 26, 0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(244, 243, 238, 0.16)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: theme.spacing.medium,
   },
   monthText: {
-    fontFamily: "Sans serif",
+    color: "rgba(244, 243, 238, 0.72)",
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
     fontSize: 12,
-    color: "#f0f0f0"
+    marginBottom: 6,
   },
-  dateText: {
-    fontFamily: "Sans serif",
-    fontSize: 64,
-    color: "#f0f0f0"
-
-  }
+  dayText: {
+    color: theme.colors.text,
+    fontSize: 50,
+    fontWeight: "700",
+    lineHeight: 54,
+  },
+  statusText: {
+    color: theme.colors.secondary,
+    fontSize: 15,
+    fontWeight: "600",
+    marginTop: 6,
+    textAlign: "center",
+  },
+  subtitleText: {
+    color: "rgba(244, 243, 238, 0.8)",
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: "center",
+    marginTop: 6,
+  },
 });

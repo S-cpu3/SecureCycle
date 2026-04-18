@@ -28,7 +28,7 @@ export default function Index() {
       duration: 1000,
       easing: Easing.inOut(Easing.ease),
     });
-  }, []);
+  }, [lockScreenOpacity, logoScale, logoY]);
 
   const logoAnimatedStyle = useAnimatedStyle(() => {
     return {

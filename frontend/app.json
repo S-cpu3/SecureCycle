@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Safe Cycle",
-    "slug": "Safe Cycle",
+    "slug": "safe-cycle",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/SafeCycleLogo.png",
-    "scheme": "Safe Cycle",
+    "scheme": "safecycle",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -53,7 +53,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

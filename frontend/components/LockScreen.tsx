@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import { Image } from "expo-image";
 import { Button } from "react-native-paper";
 import * as LocalAuthentication from "expo-local-authentication";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { theme } from "@/theme/theme";
 import { useRouter } from "expo-router";
 import Animated, {
@@ -14,17 +13,30 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
+import { useDatabase } from "@/hooks/use-database";
+import { ensurePrimaryUser, updateUserPin, verifyUserPin } from "@/dao/userDao";
+import {
+  clearFailedPinAttempts,
+  getSecuritySettings,
+  registerFailedPinAttempt,
+} from "@/dao/securityDao";
 
-const PIN_KEY = "user_pin";
+const PIN_LENGTH = 6;
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function LockScreen() {
+  const db = useDatabase();
+  const router = useRouter();
   const [pin, setPin] = useState("");
-  const [storedPin, setStoredPin] = useState<string | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
   const [isPinSet, setIsPinSet] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
-  const router = useRouter();
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const [canUseBiometrics, setCanUseBiometrics] = useState(false);
+  const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
 
   const lockScreenOpacity = useSharedValue(1);
   const gradientOpacity = useSharedValue(0);
@@ -32,30 +44,33 @@ export default function LockScreen() {
   const logoOpacity = useSharedValue(0);
 
   useEffect(() => {
-    const loadPin = async () => {
-      const savedPin = await AsyncStorage.getItem(PIN_KEY);
-      if (savedPin) {
-        setStoredPin(savedPin);
-        setIsPinSet(true);
-      }
-    };
-    loadPin();
-  }, []);
-
-  const handlePinChange = (value: string) => {
-    if (value.length <= 6) {
-      setPin(value);
+    if (lockedUntil <= Date.now()) {
+      return;
     }
-  };
 
-  const navigateToTabs = () => {
+    setNow(Date.now());
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [lockedUntil]);
+
+  const lockSecondsRemaining = useMemo(() => {
+    return Math.max(0, Math.ceil((lockedUntil - now) / 1000));
+  }, [lockedUntil, now]);
+
+  const isLocked = lockSecondsRemaining > 0;
+
+  const navigateToTabs = useCallback(() => {
     router.replace("/(tabs)");
-  };
+  }, [router]);
 
-  const handleUnlock = () => {
+  const handleUnlock = useCallback(() => {
     if (isUnlocking) {
       return;
     }
+
     setIsUnlocking(true);
     lockScreenOpacity.value = withTiming(0, {
       duration: 220,
@@ -81,60 +96,96 @@ export default function LockScreen() {
         }
       }
     );
-  };
+  }, [gradientOpacity, gradientScale, isUnlocking, lockScreenOpacity, logoOpacity, navigateToTabs]);
 
-  const handlePinSubmit = async () => {
-    if (isPinSet) {
-      if (pin === storedPin) {
+  useEffect(() => {
+    async function loadState() {
+      const user = await ensurePrimaryUser(db);
+      const security = await getSecuritySettings(db, user.user_id);
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync() : false;
+
+      setUserId(user.user_id);
+      setIsPinSet(Boolean(user.pin_hash));
+      setLockedUntil(security.lockout_until ? new Date(security.lockout_until).getTime() : 0);
+      setCanUseBiometrics(hasHardware && isEnrolled);
+      setIsBiometricEnabled(security.biometric_enabled === 1);
+      setIsLoaded(true);
+
+      if (!user.pin_hash) {
         handleUnlock();
-      } else {
-        Alert.alert("Error", "Incorrect PIN");
-        setPin("");
-      }
-    } else {
-      if (pin.length === 6) {
-        await AsyncStorage.setItem(PIN_KEY, pin);
-        setStoredPin(pin);
-        setIsPinSet(true);
-        handleUnlock();
-        Alert.alert("Success", "PIN set successfully!");
-      } else {
-        Alert.alert("Error", "PIN must be 6 digits long.");
       }
     }
-  };
 
-  const handleBiometricAuth = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    if (!hasHardware) {
-      Alert.alert("Error", "Biometric hardware not supported");
+    loadState().catch((error) => {
+      console.error("Failed to load lock screen state", error);
+      setIsLoaded(true);
+    });
+  }, [db, handleUnlock]);
+
+  const handlePinChange = (value: string) => {
+    if (isLocked || value.length > PIN_LENGTH) {
       return;
     }
 
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-    if (!isEnrolled) {
-      Alert.alert("Error", "No biometrics enrolled");
+    setPin(value);
+  };
+
+  const handlePinSubmit = async () => {
+    if (!userId || isLocked || pin.length !== PIN_LENGTH) {
+      return;
+    }
+
+    if (!isPinSet) {
+      await updateUserPin(db, userId, pin);
+      await clearFailedPinAttempts(db, userId);
+      setPin("");
+      setIsPinSet(true);
+      setLockedUntil(0);
+      handleUnlock();
+      return;
+    }
+
+    const isValid = await verifyUserPin(db, pin);
+
+    if (isValid) {
+      await clearFailedPinAttempts(db, userId);
+      setPin("");
+      setLockedUntil(0);
+      handleUnlock();
+      return;
+    }
+
+    const result = await registerFailedPinAttempt(db, userId);
+    setPin("");
+    setLockedUntil(new Date(result.lockoutUntil).getTime());
+    Alert.alert("Incorrect PIN", `Try again in ${Math.ceil(result.backoffMs / 1000)} seconds.`);
+  };
+
+  const handleBiometricAuth = async () => {
+    if (!userId || isLocked || !isBiometricEnabled || !canUseBiometrics) {
+      Alert.alert("Unavailable", "Face ID or biometrics are not enabled on this device.");
       return;
     }
 
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: "Authenticate to unlock SafeCycle",
-      fallbackLabel: "Use PIN",
-      disableDeviceFallback: false,
+      disableDeviceFallback: true,
     });
 
-    if (result.success) {
-      handleUnlock();
-    } else {
-      Alert.alert(
-        "Authentication Failed",
-        result.error || "Could not authenticate",
-      );
+    if (!result.success) {
+      Alert.alert("Authentication Failed", result.error || "Could not authenticate.");
+      return;
     }
+
+    await clearFailedPinAttempts(db, userId);
+    setLockedUntil(0);
+    handleUnlock();
   };
 
   const renderPinInput = () => {
-    const displayPin = pin.padEnd(6, "_");
+    const displayPin = pin.padEnd(PIN_LENGTH, "_");
+
     return (
       <View style={styles.pinDisplayContainer}>
         {displayPin.split("").map((char, index) => (
@@ -166,14 +217,20 @@ export default function LockScreen() {
                 labelStyle={styles.numberButtonLabel}
                 onPress={() => {
                   if (num === "back") {
-                    setPin((prev) => prev.slice(0, -1));
-                  } else if (num === "") {
-                    handleBiometricAuth();
-                  } else {
-                    handlePinChange(pin + num);
+                    if (!isLocked) {
+                      setPin((previous) => previous.slice(0, -1));
+                    }
+                    return;
                   }
+
+                  if (num === "") {
+                    handleBiometricAuth();
+                    return;
+                  }
+
+                  handlePinChange(pin + num);
                 }}
-                disabled={num === "" && !LocalAuthentication.hasHardwareAsync()} // Disable biometric button if no hardware
+                disabled={(num === "" && (!canUseBiometrics || !isBiometricEnabled)) || isLocked || !isLoaded}
               >
                 {num === "back" ? "⌫" : num === "" ? " biometric " : num}
               </Button>
@@ -213,15 +270,26 @@ export default function LockScreen() {
           <Image source={require("../assets/images/SafeCycleLogo.png")} style={styles.logo} contentFit="contain" />
         </Animated.View>
       </AnimatedLinearGradient>
-      <Animated.View
-        style={[styles.lockScreenContainer, lockScreenAnimatedStyle]}
-      >
+
+      <Animated.View style={[styles.lockScreenContainer, lockScreenAnimatedStyle]}>
         {renderPinInput()}
+        <Text style={styles.helperText}>
+          {isPinSet ? "Enter your 6-digit PIN" : "Set a PIN later from Profile"}
+        </Text>
+        {isLocked ? (
+          <Text style={styles.lockMessage}>Too many attempts. Try again in {lockSecondsRemaining}s.</Text>
+        ) : (
+          <Text style={styles.lockMessageMuted}>
+            {isBiometricEnabled && canUseBiometrics
+              ? "Biometric unlock is enabled without device passcode fallback."
+              : "Biometric unlock can be enabled later from Profile."}
+          </Text>
+        )}
         {renderNumberPad()}
         <Button
           mode="contained"
           onPress={handlePinSubmit}
-          disabled={pin.length !== 6}
+          disabled={pin.length !== PIN_LENGTH || isLocked || !isLoaded}
           style={styles.submitButton}
         >
           {isPinSet ? "Unlock" : "Set PIN"}
@@ -249,14 +317,29 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  title: {
-    fontSize: 24,
+  helperText: {
+    marginBottom: theme.spacing.small,
+    color: "rgba(244, 243, 238, 0.78)",
+    fontSize: 14,
+  },
+  lockMessage: {
+    marginBottom: theme.spacing.medium,
     color: theme.colors.text,
-    marginBottom: theme.spacing.large * 2,
+    fontSize: 16,
+    textAlign: "center",
+    paddingHorizontal: theme.spacing.large,
+  },
+  lockMessageMuted: {
+    marginBottom: theme.spacing.medium,
+    color: "rgba(244, 243, 238, 0.7)",
+    fontSize: 13,
+    textAlign: "center",
+    paddingHorizontal: theme.spacing.large * 1.5,
+    lineHeight: 18,
   },
   pinDisplayContainer: {
     flexDirection: "row",
-    marginBottom: theme.spacing.large * 2,
+    marginBottom: theme.spacing.medium,
   },
   pinChar: {
     fontSize: 30,
