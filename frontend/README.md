@@ -48,3 +48,94 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+---
+
+## Application Layout
+
+```
+SafeCycle Frontend
+│
+├─ App Shell
+│  ├─ `frontend/app/_layout.tsx`
+│  ├─ `react-native-paper` theme provider
+│  └─ `DatabaseProvider`
+│
+├─ Bootstrap / Persistence Setup
+│  └─ `frontend/contexts/DatabaseProvider.tsx`
+│     ├─ opens `safecycle.db`
+│     ├─ runs migrations / creates tables
+│     ├─ ensures primary local user exists
+│     └─ ensures security settings exist
+│
+├─ Entry Flow
+│  └─ `frontend/app/index.tsx`
+│     ├─ splash/logo animation
+│     └─ `LockScreen`
+│
+├─ Security Layer
+│  └─ `frontend/components/LockScreen.tsx`
+│     ├─ PIN entry / setup
+│     ├─ biometric auth
+│     ├─ failed-attempt lockout
+│     └─ on success -> `router.replace("/(tabs)")`
+│
+├─ Main Navigation
+│  └─ `frontend/app/(tabs)/_layout.tsx`
+│     ├─ Home
+│     ├─ History
+│     └─ Profile
+│
+├─ Feature Screens
+│  ├─ Home: `frontend/app/(tabs)/index.tsx`
+│  │  ├─ loads cycle stats
+│  │  ├─ loads prediction state
+│  │  └─ renders `CycleTracker`
+│  │
+│  ├─ History: `frontend/app/(tabs)/history.tsx`
+│  │  ├─ loads saved periods
+│  │  ├─ logs new period starts
+│  │  └─ refreshes prediction
+│  │
+│  └─ Profile: `frontend/app/(tabs)/profile.tsx`
+│     ├─ loads user profile
+│     ├─ saves name / DOB
+│     ├─ saves health conditions
+│     └─ saves user intent
+│
+├─ Hooks / Composition
+│  ├─ `frontend/hooks/use-database.ts`
+│  └─ `frontend/hooks/use-prediction.ts`
+│     ├─ fetches user + conditions + cycle stats
+│     ├─ computes age
+│     └─ calls prediction engine
+│
+├─ Domain / Data Access
+│  ├─ `frontend/services/dao/UserDao.ts`
+│  ├─ `frontend/services/dao/ProfileDao.ts`
+│  ├─ `frontend/services/dao/PeriodDao.ts`
+│  └─ `frontend/services/dao/CycleDao.ts`
+│
+├─ Security DAO Layer
+│  ├─ `frontend/dao/userDao.ts`
+│  └─ `frontend/dao/securityDao.ts`
+│
+├─ Business Logic
+│  └─ `frontend/engine/predictionEngine.ts`
+│     ├─ blends personal history + population defaults
+│     ├─ adjusts for conditions
+│     ├─ computes period/fertility windows
+│     └─ returns confidence + range
+│
+└─ Local Storage
+   └─ SQLite tables from `frontend/contexts/schema.js`
+      ├─ Users
+      ├─ Cycles
+      ├─ Periods
+      ├─ Entries
+      ├─ HealthConditions
+      ├─ UserBirthControl
+      ├─ UserIntent
+      ├─ Predictions
+      └─ SecuritySettings
+```
