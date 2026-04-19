@@ -1,26 +1,34 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, Text } from "react-native-paper";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import Entypo from "@expo/vector-icons/Entypo";
-import { useFocusEffect } from "@react-navigation/native";
-import { theme } from "@/theme/theme";
-import { useDatabase } from "@/hooks/use-database";
-import {
-  CalendarDayState,
-  getCalendarMonthData,
-  getSavedPeriods,
-  logPeriod,
-  SavedPeriod,
-} from "@/dao/cycleDao";
-import { ensurePrimaryUser } from "@/dao/userDao";
 
-const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { usePrediction } from "@/hooks/use-prediction";
+import { useDatabase } from "@/hooks/use-database";
+import { CycleDao } from "@/services/dao/CycleDao";
+import { PeriodDao } from "@/services/dao/PeriodDao";
+import { toISO, type Period } from "@/types/models";
+import { theme } from "@/theme/theme";
 
 type CalendarCell = Date | null;
 
+const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function addDays(value: Date, amount: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + amount);
+  return startOfDay(next);
+}
+
+function isSameDay(first: Date, second: Date) {
+  return (
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate()
+  );
 }
 
 function buildMonthGrid(month: Date): CalendarCell[] {
@@ -28,10 +36,9 @@ function buildMonthGrid(month: Date): CalendarCell[] {
   const monthIndex = month.getMonth();
   const firstDay = new Date(year, monthIndex, 1);
   const totalDays = new Date(year, monthIndex + 1, 0).getDate();
-  const leadingEmpty = firstDay.getDay();
   const cells: CalendarCell[] = [];
 
-  for (let index = 0; index < leadingEmpty; index += 1) {
+  for (let index = 0; index < firstDay.getDay(); index += 1) {
     cells.push(null);
   }
 
@@ -46,35 +53,37 @@ function buildMonthGrid(month: Date): CalendarCell[] {
   return cells;
 }
 
-function toKey(date: Date) {
-  return date.toISOString().slice(0, 10);
+function getPeriodRange(period: Period) {
+  return {
+    start: new Date(`${period.start_date}T00:00:00`),
+    end: new Date(`${period.end_date}T00:00:00`),
+  };
 }
 
-export default function History() {
+function isWithin(date: Date, start: Date, end: Date) {
+  const value = startOfDay(date).getTime();
+  return value >= start.getTime() && value <= end.getTime();
+}
+
+export default function HistoryScreen() {
   const db = useDatabase();
   const today = startOfDay(new Date());
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedStart, setSelectedStart] = useState<Date | null>(today);
   const [periodLength, setPeriodLength] = useState(5);
-  const [calendarState, setCalendarState] = useState<Record<string, CalendarDayState>>({});
-  const [savedPeriods, setSavedPeriods] = useState<SavedPeriod[]>([]);
+  const [periods, setPeriods] = useState<Period[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const { prediction, refresh } = usePrediction();
 
-  const loadMonth = useCallback(async () => {
-    const user = await ensurePrimaryUser(db);
-    const monthState = await getCalendarMonthData(db, user.user_id, visibleMonth);
-    const periods = await getSavedPeriods(db, user.user_id);
-    setCalendarState(monthState);
-    setSavedPeriods(periods);
-  }, [db, visibleMonth]);
+  const loadPeriods = useCallback(async () => {
+    const nextPeriods = await PeriodDao.getAll(db);
+    setPeriods(nextPeriods);
+  }, [db]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadMonth().catch((error) => {
-        console.error("Failed to load calendar", error);
-      });
-    }, [loadMonth])
-  );
+  useEffect(() => {
+    loadPeriods().catch((error) => {
+      console.error("Failed to load period history", error);
+    });
+  }, [loadPeriods]);
 
   const monthCells = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
 
@@ -87,159 +96,126 @@ export default function History() {
     [visibleMonth]
   );
 
-  const selectedLabel = selectedStart
-    ? selectedStart.toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "Choose a start date";
+  const handleLogPeriod = useCallback(
+    async (selectedDate: Date) => {
+      setIsSaving(true);
 
-  const handleSavePeriod = async () => {
-    if (!selectedStart) {
-      return;
-    }
+      try {
+        const cycleId = await CycleDao.start(db, toISO(selectedDate));
+        await PeriodDao.log(db, cycleId, toISO(selectedDate), toISO(addDays(selectedDate, periodLength - 1)));
+        await loadPeriods();
+        refresh();
+      } catch (error) {
+        console.error("Failed to log period", error);
+        Alert.alert("Unable to save period", "Please try again.");
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [db, loadPeriods, periodLength, refresh]
+  );
 
-    setIsSaving(true);
-    try {
-      const user = await ensurePrimaryUser(db);
-      await logPeriod(db, user.user_id, selectedStart, periodLength);
-      await loadMonth();
-    } catch (error) {
-      Alert.alert(
-        "Couldn't save period",
-        error instanceof Error ? error.message : "Please choose a start date at least 21 days from the last one."
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const latestPeriod = periods[0] ?? null;
+  const periodLabel = latestPeriod ? `${latestPeriod.start_date} - ${latestPeriod.end_date}` : "No periods logged yet";
+  const nextLabel = prediction
+    ? prediction.showRangeOnly
+      ? `${prediction.earliest.toLocaleDateString()} - ${prediction.latest.toLocaleDateString()}`
+      : prediction.predicted.toLocaleDateString()
+    : "Unavailable";
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Cycle Calendar</Text>
-        <Text style={styles.subtitle}>Tap a day, choose flow length, then save it.</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <Text style={styles.title}>History</Text>
+      <Text style={styles.subtitle}>Tap a date to log a period start. New logs currently use the length selected below.</Text>
 
-        <Card style={styles.inputCard}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>Log a period</Text>
-            <Text style={styles.selectionText}>{selectedLabel}</Text>
+      <Card style={styles.summaryCard}>
+        <Card.Content>
+          <Text style={styles.summaryTitle}>Latest saved period</Text>
+          <Text style={styles.summaryValue}>{periodLabel}</Text>
+          <Text style={styles.summaryMeta}>Next estimate: {nextLabel}</Text>
+        </Card.Content>
+      </Card>
 
-            <View style={styles.lengthRow}>
-              {[3, 4, 5, 6, 7].map((length) => (
-                <Pressable
-                  key={length}
-                  onPress={() => setPeriodLength(length)}
-                  style={[styles.lengthChip, periodLength === length && styles.lengthChipActive]}
-                >
-                  <Text style={[styles.lengthChipText, periodLength === length && styles.lengthChipTextActive]}>
-                    {length}d
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <Button mode="contained" style={styles.saveButton} onPress={handleSavePeriod} loading={isSaving}>
-              Save period
+      <Card style={styles.calendarCard}>
+        <Card.Content>
+          <View style={styles.monthHeader}>
+            <Button textColor={theme.colors.secondary} onPress={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}>
+              Prev
             </Button>
-          </Card.Content>
-        </Card>
+            <Text style={styles.monthLabel}>{monthLabel}</Text>
+            <Button textColor={theme.colors.secondary} onPress={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}>
+              Next
+            </Button>
+          </View>
 
-        <View style={styles.navigationRow}>
-          <Pressable onPress={() => setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() - 1, 1))} style={styles.navButton}>
-            <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
-          </Pressable>
-          <Text style={styles.monthLabel}>{monthLabel}</Text>
-          <Pressable onPress={() => setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + 1, 1))} style={styles.navButton}>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.text} />
-          </Pressable>
-        </View>
+          <View style={styles.weekRow}>
+            {WEEK_DAYS.map((day) => (
+              <Text key={day} style={styles.weekDay}>
+                {day}
+              </Text>
+            ))}
+          </View>
 
-        <View style={styles.weekHeaderRow}>
-          {WEEK_DAYS.map((day) => (
-            <Text key={day} style={styles.weekHeaderText}>
-              {day}
-            </Text>
-          ))}
-        </View>
+          <View style={styles.grid}>
+            {monthCells.map((cell, index) => {
+              if (!cell) {
+                return <View key={`empty-${index}`} style={styles.dayCell} />;
+              }
 
-        <View style={styles.grid}>
-          {monthCells.map((cell, index) => {
-            if (!cell) {
-              return <View key={`empty-${index}`} style={styles.dayCell} />;
-            }
+              const isToday = isSameDay(cell, today);
+              const isPeriodDay = periods.some((period) => {
+                const range = getPeriodRange(period);
+                return isWithin(cell, range.start, range.end);
+              });
+              const isFertileDay =
+                !!prediction?.fertileStart &&
+                !!prediction?.fertileEnd &&
+                isWithin(cell, startOfDay(prediction.fertileStart), startOfDay(prediction.fertileEnd));
+              const isPredictedDay =
+                !!prediction && isWithin(cell, startOfDay(prediction.earliest), startOfDay(prediction.latest));
 
-            const key = toKey(cell);
-            const dayState = calendarState[key];
-            const isToday = key === toKey(today);
-            const isSelected = selectedStart ? key === toKey(selectedStart) : false;
+              return (
+                <Pressable
+                  key={cell.toISOString()}
+                  style={[
+                    styles.dayCell,
+                    isPeriodDay && styles.periodDay,
+                    isPredictedDay && styles.predictedDay,
+                    isFertileDay && styles.fertileDay,
+                    isToday && styles.todayCell,
+                  ]}
+                  onPress={() => handleLogPeriod(cell)}
+                  disabled={isSaving}
+                >
+                  <Text style={styles.dayText}>{cell.getDate()}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-            return (
+          <View style={styles.lengthRow}>
+            {[3, 4, 5, 6, 7].map((length) => (
               <Pressable
-                key={key}
-                onPress={() => setSelectedStart(cell)}
-                style={[
-                  styles.dayCell,
-                  dayState?.kind === "period" && styles.periodDayCell,
-                  dayState?.kind === "fertile" && styles.fertileDayCell,
-                  dayState?.kind === "ovulation" && styles.ovulationDayCell,
-                  isToday && styles.currentDayCell,
-                  isSelected && styles.selectedDayCell,
-                ]}
+                key={length}
+                style={[styles.lengthChip, length === periodLength && styles.lengthChipActive]}
+                onPress={() => setPeriodLength(length)}
               >
-                <Text style={styles.dayText}>{cell.getDate()}</Text>
-                {dayState?.kind === "period" ? (
-                  <Entypo name="drop" size={12} color={theme.colors.text} />
-                ) : null}
-                {dayState?.kind === "ovulation" ? <Text style={styles.ovulationBadgeText}>O</Text> : null}
+                <Text style={styles.lengthText}>{length}d</Text>
               </Pressable>
-            );
-          })}
-        </View>
+            ))}
+          </View>
+        </Card.Content>
+      </Card>
 
-        <View style={styles.legendContainer}>
-          <View style={styles.legendRow}>
-            <Entypo name="drop" size={14} color={theme.colors.text} />
-            <Text style={styles.legendText}>Period</Text>
-          </View>
-          <View style={styles.legendRow}>
-            <View style={styles.legendFertileDot} />
-            <Text style={styles.legendText}>Fertile</Text>
-          </View>
-          <View style={styles.legendRow}>
-            <Text style={styles.legendOvulationDotText}>O</Text>
-            <Text style={styles.legendText}>Ovulation</Text>
-          </View>
-        </View>
-
-        <Card style={styles.historyCard}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>Saved periods</Text>
-            {savedPeriods.length === 0 ? (
-              <Text style={styles.historyText}>No saved periods yet.</Text>
-            ) : (
-              savedPeriods.map((period) => (
-                <View key={`${period.startDate}-${period.endDate}`} style={styles.historyRow}>
-                  <Text style={styles.historyText}>
-                    {new Date(`${period.startDate}T00:00:00`).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}{" "}
-                    to{" "}
-                    {new Date(`${period.endDate}T00:00:00`).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
-                  <Text style={styles.historyCount}>{period.length} days</Text>
-                </View>
-              ))
-            )}
-          </Card.Content>
-        </Card>
-      </ScrollView>
-    </View>
+      <Card style={styles.legendCard}>
+        <Card.Content>
+          <Text style={styles.summaryTitle}>Legend</Text>
+          <Text style={styles.legendText}>Filled red: logged period</Text>
+          <Text style={styles.legendText}>Outlined rose: predicted period range</Text>
+          <Text style={styles.legendText}>Soft pink: fertile window</Text>
+        </Card.Content>
+      </Card>
+    </ScrollView>
   );
 }
 
@@ -249,182 +225,128 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   contentContainer: {
-    paddingHorizontal: theme.spacing.medium,
-    paddingTop: theme.spacing.large,
-    paddingBottom: theme.spacing.large,
+    padding: theme.spacing.medium,
+    gap: theme.spacing.medium,
   },
   title: {
     color: theme.colors.text,
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: "700",
-    marginBottom: 4,
   },
   subtitle: {
     color: "rgba(244, 243, 238, 0.72)",
-    marginBottom: theme.spacing.medium,
+    fontSize: 15,
+    lineHeight: 22,
   },
-  inputCard: {
+  summaryCard: {
     backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderRadius: theme.roundness * 3,
-    marginBottom: theme.spacing.large,
     borderWidth: 1,
     borderColor: "rgba(244, 243, 238, 0.1)",
   },
-  sectionTitle: {
+  summaryTitle: {
     color: theme.colors.text,
     fontSize: 18,
     fontWeight: "700",
-    marginBottom: theme.spacing.small,
   },
-  selectionText: {
-    color: theme.colors.text,
-    marginBottom: theme.spacing.medium,
+  summaryValue: {
+    color: theme.colors.secondary,
+    fontSize: 16,
+    marginTop: 8,
   },
-  lengthRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing.medium,
+  summaryMeta: {
+    color: "rgba(244, 243, 238, 0.72)",
+    fontSize: 14,
+    marginTop: 8,
   },
-  lengthChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 999,
+  calendarCard: {
+    backgroundColor: "rgba(244, 243, 238, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.16)",
-    backgroundColor: "rgba(38, 12, 26, 0.35)",
+    borderColor: "rgba(244, 243, 238, 0.1)",
   },
-  lengthChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  lengthChipText: {
-    color: theme.colors.text,
-    fontWeight: "600",
-  },
-  lengthChipTextActive: {
-    color: theme.colors.text,
-  },
-  saveButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.roundness * 3,
-  },
-  navigationRow: {
+  monthHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.small,
-  },
-  navButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(244,243,238,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 12,
   },
   monthLabel: {
     color: theme.colors.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
   },
-  weekHeaderRow: {
+  weekRow: {
     flexDirection: "row",
-    marginBottom: theme.spacing.small,
+    marginBottom: 8,
   },
-  weekHeaderText: {
-    width: `${100 / 7}%`,
+  weekDay: {
+    flex: 1,
     textAlign: "center",
-    color: "rgba(244, 243, 238, 0.7)",
+    color: "rgba(244, 243, 238, 0.56)",
     fontSize: 12,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: theme.spacing.medium,
+    gap: 8,
   },
   dayCell: {
-    width: `${100 / 7}%`,
+    width: "12.5%",
     aspectRatio: 1,
-    borderRadius: theme.roundness,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(244,243,238,0.08)",
-    alignItems: "center",
+    borderColor: "rgba(244, 243, 238, 0.08)",
     justifyContent: "center",
-    gap: 4,
-    marginBottom: 4,
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
   },
   dayText: {
     color: theme.colors.text,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
   },
-  currentDayCell: {
+  todayCell: {
     borderColor: theme.colors.secondary,
   },
-  selectedDayCell: {
-    borderColor: theme.colors.text,
-    borderWidth: 2,
+  periodDay: {
+    backgroundColor: "rgba(173, 38, 58, 0.82)",
   },
-  periodDayCell: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+  predictedDay: {
+    borderColor: "#F2A7BE",
   },
-  fertileDayCell: {
-    backgroundColor: "rgba(219, 69, 123, 0.24)",
-    borderColor: "rgba(219, 69, 123, 0.4)",
+  fertileDay: {
+    backgroundColor: "rgba(219, 69, 123, 0.22)",
   },
-  ovulationDayCell: {
-    backgroundColor: theme.colors.secondary,
-    borderColor: theme.colors.secondary,
-  },
-  ovulationBadgeText: {
-    color: theme.colors.background,
-    fontWeight: "800",
-    fontSize: 12,
-  },
-  legendContainer: {
+  lengthRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing.large,
+    gap: 8,
+    marginTop: 16,
+    justifyContent: "center",
   },
-  legendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  legendText: {
-    color: theme.colors.text,
-    fontSize: 12,
-  },
-  legendFertileDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "rgba(219, 69, 123, 0.7)",
-  },
-  legendOvulationDotText: {
-    color: theme.colors.secondary,
-    fontWeight: "800",
-    width: 12,
-    textAlign: "center",
-  },
-  historyCard: {
+  lengthChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
     backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderRadius: theme.roundness * 3,
     borderWidth: 1,
     borderColor: "rgba(244, 243, 238, 0.1)",
   },
-  historyRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(244,243,238,0.08)",
+  lengthChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
-  historyText: {
+  lengthText: {
     color: theme.colors.text,
+    fontWeight: "700",
   },
-  historyCount: {
+  legendCard: {
+    backgroundColor: "rgba(244, 243, 238, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(244, 243, 238, 0.1)",
+  },
+  legendText: {
     color: "rgba(244, 243, 238, 0.72)",
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 6,
   },
 });
