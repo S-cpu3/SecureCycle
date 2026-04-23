@@ -1,77 +1,63 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Card, Text } from "react-native-paper";
-
-import CycleTracker from "@/components/CycleTracker";
-import { usePrediction } from "@/hooks/use-prediction";
-import { useDatabase } from "@/hooks/use-database";
-import { CycleDao } from "@/services/dao/CycleDao";
-import { fromISO, type ISODateString } from "@/types/models";
+import { ActivityIndicator, Button, Text } from "react-native-paper";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import CycleTracker, { CycleDay } from "@/components/CycleTracker";
 import { theme } from "@/theme/theme";
+import { useDatabase } from "@/hooks/use-database";
+import { getHomeCycleData, HomeCycleData, HomeCycleState } from "@/dao/cycleDao";
+import { ensurePrimaryUser } from "@/dao/userDao";
 
-type CycleStatsState = {
-  cyclesLogged: number;
-  avgCycleLength: number | null;
-  stdDev: number | null;
-  lastPeriodStart: ISODateString | null;
+export const metadata = {
+  title: "Home",
 };
 
-export default function HomeScreen() {
+function buildDays(data: HomeCycleData): CycleDay[] {
+  return Array.from({ length: data.cycleLength }, (_, index) => {
+    const day = index + 1;
+
+    if (day === data.ovulationDay) {
+      return { day, status: "ovulation" };
+    }
+
+    if (data.periodDays.includes(day)) {
+      return { day, status: "period" };
+    }
+
+    if (data.fertileDays.includes(day)) {
+      return { day, status: "fertile" };
+    }
+
+    return { day, status: "luteal" };
+  });
+}
+
+export default function Index() {
   const db = useDatabase();
-  const { prediction, loading, error } = usePrediction();
-  const [stats, setStats] = useState<CycleStatsState | null>(null);
+  const [data, setData] = useState<HomeCycleState>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      setIsLoading(true);
 
-    CycleDao.computeStats(db)
-      .then((nextStats) => {
-        if (isMounted) {
-          setStats(nextStats);
-        }
-      })
-      .catch((loadError) => {
-        console.error("Failed to load cycle statistics", loadError);
+      async function load() {
+        const user = await ensurePrimaryUser(db);
+        const cycleData = await getHomeCycleData(db, user.user_id);
+        setData(cycleData);
+        setIsLoading(false);
+      }
+
+      load().catch((error) => {
+        console.error("Failed to load cycle data", error);
+        setIsLoading(false);
       });
+    }, [db])
+  );
 
-    return () => {
-      isMounted = false;
-    };
-  }, [db]);
-
-  const lastPeriodStart = useMemo(() => {
-    if (!stats?.lastPeriodStart) {
-      return null;
-    }
-
-    return fromISO(stats.lastPeriodStart);
-  }, [stats]);
-
-  const nextPeriodLabel = useMemo(() => {
-    if (!prediction) {
-      return "Add a few period logs to unlock a forecast.";
-    }
-
-    if (prediction.showRangeOnly) {
-      return `${prediction.earliest.toLocaleDateString()} - ${prediction.latest.toLocaleDateString()}`;
-    }
-
-    return prediction.predicted.toLocaleDateString();
-  }, [prediction]);
-
-  const fertilityLabel = useMemo(() => {
-    if (!prediction) {
-      return "Unavailable";
-    }
-
-    if (!prediction.fertileStart || !prediction.fertileEnd) {
-      return "Suppressed for current profile";
-    }
-
-    return `${prediction.fertileStart.toLocaleDateString()} - ${prediction.fertileEnd.toLocaleDateString()}`;
-  }, [prediction]);
-
-  if (loading && !stats) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={theme.colors.secondary} />
@@ -79,48 +65,69 @@ export default function HomeScreen() {
     );
   }
 
+  if (!data) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.title}>Your cycle</Text>
+        <Text style={styles.emptyText}>Log a period in History to start tracking.</Text>
+        <Button mode="contained" style={styles.emptyButton} onPress={() => router.push("/(tabs)/history")}>
+          Open History
+        </Button>
+      </View>
+    );
+  }
+
+  const days = buildDays(data);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.title}>Your cycle</Text>
-      <Text style={styles.subtitle}>
-        {error ? "Prediction is temporarily unavailable, but your saved data is still intact." : "A quick view of today and what comes next."}
-      </Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Your cycle</Text>
+        <Text style={styles.subtitle}>{data.phaseDetail}</Text>
+      </View>
 
       <View style={styles.trackerWrap}>
-        <CycleTracker prediction={prediction} lastPeriodStart={lastPeriodStart} />
+        <CycleTracker
+          monthLabel={new Date().toLocaleString(undefined, { month: "long" })}
+          dayLabel={`${data.currentCycleDay}`}
+          statusLabel={data.phaseLabel}
+          subtitle={data.currentDateLabel}
+          days={days}
+        />
       </View>
 
-      <View style={styles.cardRow}>
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardLabel}>Next period</Text>
-            <Text style={styles.cardValue}>{nextPeriodLabel}</Text>
-          </Card.Content>
-        </Card>
-
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.cardLabel}>Fertile window</Text>
-            <Text style={styles.cardValue}>{fertilityLabel}</Text>
-          </Card.Content>
-        </Card>
+      <View style={styles.summaryRow}>
+        <View style={styles.summaryCard}>
+          <MaterialCommunityIcons name="water" size={20} color={theme.colors.secondary} />
+          <Text style={styles.summaryValue}>{data.periodDays.length} days</Text>
+          <Text style={styles.summaryLabel}>Period</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <MaterialCommunityIcons name={"star-four-points" as any} size={20} color={theme.colors.secondary} />
+          <Text style={styles.summaryValue}>{data.fertileDays.length} days</Text>
+          <Text style={styles.summaryLabel}>Fertile</Text>
+        </View>
+        <View style={[styles.summaryCard, styles.summaryCardLast]}>
+          <MaterialCommunityIcons name="calendar-heart" size={20} color={theme.colors.secondary} />
+          <Text style={styles.summaryValue}>Day {data.ovulationDay}</Text>
+          <Text style={styles.summaryLabel}>Ovulation</Text>
+        </View>
       </View>
 
-      <Card style={styles.detailCard}>
-        <Card.Content>
-          <Text style={styles.sectionTitle}>Prediction details</Text>
-          <Text style={styles.detailText}>
-            {prediction
-              ? `Confidence: ${Math.round(prediction.confidenceScore)}%. Estimated cycle length: ${Math.round(prediction.cycleLength)} days.`
-              : "No forecast yet. Once the app has enough cycle history, this section will populate automatically."}
-          </Text>
-          <Text style={styles.detailText}>
-            {stats?.cyclesLogged
-              ? `Logged cycles: ${stats.cyclesLogged}${stats.avgCycleLength ? ` • Average length: ${Math.round(stats.avgCycleLength)} days` : ""}`
-              : "No completed cycles saved yet."}
-          </Text>
-        </Card.Content>
-      </Card>
+      <View style={styles.timelineCard}>
+        <Text style={styles.timelineTitle}>Recent logs</Text>
+        {data.entries.map((entry) => (
+          <View key={`${entry.date}-${entry.entry_type}-${entry.symptom_type ?? "base"}`} style={styles.timelineRow}>
+            <View style={styles.timelineDot} />
+            <View style={styles.timelineText}>
+              <Text style={styles.timelineHeading}>
+                {entry.entry_type === "period" ? "Period" : "Symptom"} · {entry.date}
+              </Text>
+              <Text style={styles.timelineBody}>{entry.notes || entry.symptom_type || entry.intensity || "Logged"}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -137,60 +144,114 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
     backgroundColor: theme.colors.background,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: theme.spacing.large,
+    backgroundColor: theme.colors.background,
+  },
+  emptyText: {
+    color: "rgba(244, 243, 238, 0.78)",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+    marginTop: theme.spacing.small,
+    marginBottom: theme.spacing.large,
+  },
+  emptyButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.roundness * 3,
+  },
+  header: {
+    marginBottom: theme.spacing.large,
   },
   title: {
     color: theme.colors.text,
     fontSize: 30,
     fontWeight: "700",
+    marginBottom: 8,
   },
   subtitle: {
-    color: "rgba(244, 243, 238, 0.72)",
+    color: "rgba(244, 243, 238, 0.78)",
     fontSize: 15,
     lineHeight: 22,
-    marginTop: 8,
-    marginBottom: theme.spacing.large,
   },
   trackerWrap: {
     alignItems: "center",
     marginBottom: theme.spacing.large,
   },
-  cardRow: {
-    gap: 12,
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: theme.spacing.large,
   },
-  card: {
+  summaryCard: {
+    flex: 1,
     backgroundColor: "rgba(244, 243, 238, 0.08)",
+    borderRadius: theme.roundness * 2,
+    padding: theme.spacing.medium,
+    borderWidth: 1,
+    borderColor: "rgba(244, 243, 238, 0.1)",
+    marginRight: 10,
+  },
+  summaryCardLast: {
+    marginRight: 0,
+  },
+  summaryValue: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    color: "rgba(244, 243, 238, 0.7)",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  timelineCard: {
+    backgroundColor: "rgba(244, 243, 238, 0.08)",
+    borderRadius: theme.roundness * 3,
+    padding: theme.spacing.medium,
     borderWidth: 1,
     borderColor: "rgba(244, 243, 238, 0.1)",
   },
-  cardLabel: {
-    color: "rgba(244, 243, 238, 0.68)",
-    fontSize: 13,
-    marginBottom: 8,
-  },
-  cardValue: {
+  timelineTitle: {
     color: theme.colors.text,
     fontSize: 18,
     fontWeight: "700",
+    marginBottom: theme.spacing.medium,
   },
-  detailCard: {
-    marginTop: theme.spacing.medium,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.1)",
+  timelineRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: theme.spacing.medium,
   },
-  sectionTitle: {
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.secondary,
+    marginTop: 6,
+    marginRight: theme.spacing.small,
+  },
+  timelineText: {
+    flex: 1,
+  },
+  timelineHeading: {
     color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  detailText: {
-    color: "rgba(244, 243, 238, 0.78)",
     fontSize: 14,
-    lineHeight: 22,
-    marginBottom: 8,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  timelineBody: {
+    color: "rgba(244, 243, 238, 0.72)",
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
