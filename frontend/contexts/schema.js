@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS Users (
     pin_salt TEXT,
     first_name TEXT,
     last_name TEXT,
-    date_of_birth TEXT,
+    birth_date TEXT,
     password_hash TEXT,
     auth_type TEXT NOT NULL CHECK (auth_type IN ('local', 'google', 'apple', 'other')),
     created_at TEXT NOT NULL
