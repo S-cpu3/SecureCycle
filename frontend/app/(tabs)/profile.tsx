@@ -143,7 +143,7 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isFaceIdBusy, setIsFaceIdBusy] = useState(false);
-  const isExpoGo = Constants.executionEnvironment === "storeClient";
+    const isExpoGo = Constants.executionEnvironment === "storeClient";
 
   // Data loading: pulls profile, security state, and cycle summary on every tab focus.
   useFocusEffect(
