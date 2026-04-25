@@ -14,6 +14,7 @@ export const metadata = {
   title: "Home",
 };
 
+// Maps HomeCycleData from the DAO into the flat CycleDay array that CycleTracker expects.
 function buildDays(data: HomeCycleData): CycleDay[] {
   return Array.from({ length: data.cycleLength }, (_, index) => {
     const day = index + 1;
@@ -39,6 +40,7 @@ export default function Index() {
   const [data, setData] = useState<HomeCycleState>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Data loading: re-runs on every tab focus so the ring stays current.
   useFocusEffect(
     useCallback(() => {
       setIsLoading(true);
@@ -57,6 +59,7 @@ export default function Index() {
     }, [db])
   );
 
+  // Loading spinner while data is being fetched; empty state if no cycle is logged yet.
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -81,11 +84,13 @@ export default function Index() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      {/* Header: current phase title and detail description */}
       <View style={styles.header}>
         <Text style={styles.title}>Your cycle</Text>
         <Text style={styles.subtitle}>{data.phaseDetail}</Text>
       </View>
 
+      {/* Cycle ring: visual day-by-day breakdown of the current cycle */}
       <View style={styles.trackerWrap}>
         <CycleTracker
           monthLabel={new Date().toLocaleString(undefined, { month: "long" })}
@@ -96,6 +101,7 @@ export default function Index() {
         />
       </View>
 
+      {/* Summary stat cards: period length, fertile window, and ovulation day */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
           <MaterialCommunityIcons name="water" size={20} color={theme.colors.secondary} />
@@ -114,6 +120,7 @@ export default function Index() {
         </View>
       </View>
 
+      {/* Recent log timeline: last few period/symptom entries from the database */}
       <View style={styles.timelineCard}>
         <Text style={styles.timelineTitle}>Recent logs</Text>
         {data.entries.map((entry) => (

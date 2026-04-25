@@ -19,6 +19,7 @@ const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type CalendarCell = Date | null;
 
+// Calendar grid helpers: build a 7-column grid for a given month and normalise dates to midnight.
 function startOfDay(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
@@ -53,6 +54,8 @@ function toKey(date: Date) {
 export default function History() {
   const db = useDatabase();
   const today = startOfDay(new Date());
+
+  // State: visible month, selected start date, flow length, calendar coloring, and saved periods list.
   const [visibleMonth, setVisibleMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedStart, setSelectedStart] = useState<Date | null>(today);
   const [periodLength, setPeriodLength] = useState(5);
@@ -60,6 +63,7 @@ export default function History() {
   const [savedPeriods, setSavedPeriods] = useState<SavedPeriod[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Data loading: fetches calendar day states and saved periods; re-runs on tab focus or month change.
   const loadMonth = useCallback(async () => {
     const user = await ensurePrimaryUser(db);
     const monthState = await getCalendarMonthData(db, user.user_id, visibleMonth);
@@ -95,6 +99,7 @@ export default function History() {
       })
     : "Choose a start date";
 
+  // Save handler: writes a new period entry to the database then refreshes the calendar.
   const handleSavePeriod = async () => {
     if (!selectedStart) {
       return;
@@ -121,6 +126,7 @@ export default function History() {
         <Text style={styles.title}>Cycle Calendar</Text>
         <Text style={styles.subtitle}>Tap a day, choose flow length, then save it.</Text>
 
+        {/* Period logger: tap a start date, pick flow length (3–7 days), then save */}
         <Card style={styles.inputCard}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Log a period</Text>
@@ -146,6 +152,7 @@ export default function History() {
           </Card.Content>
         </Card>
 
+        {/* Calendar navigation: prev/next month arrows with the current month label */}
         <View style={styles.navigationRow}>
           <Pressable onPress={() => setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() - 1, 1))} style={styles.navButton}>
             <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
@@ -164,6 +171,7 @@ export default function History() {
           ))}
         </View>
 
+        {/* Calendar grid: each cell is coloured for period / fertile / ovulation days */}
         <View style={styles.grid}>
           {monthCells.map((cell, index) => {
             if (!cell) {
@@ -198,6 +206,7 @@ export default function History() {
           })}
         </View>
 
+        {/* Legend: colour key for period, fertile, and ovulation day cells */}
         <View style={styles.legendContainer}>
           <View style={styles.legendRow}>
             <Entypo name="drop" size={14} color={theme.colors.text} />
@@ -213,6 +222,7 @@ export default function History() {
           </View>
         </View>
 
+        {/* Saved periods list: all logged periods with start/end dates and flow length */}
         <Card style={styles.historyCard}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Saved periods</Text>

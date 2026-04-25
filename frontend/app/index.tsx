@@ -11,10 +11,12 @@ import LockScreen from "@/components/LockScreen";
 import { theme } from "@/theme/theme";
 
 export default function Index() {
+  // Shared animation values: logo slides up and shrinks as the lock screen fades in.
   const logoY = useSharedValue(0);
   const logoScale = useSharedValue(1);
   const lockScreenOpacity = useSharedValue(0);
 
+  // Kick off all three animations simultaneously on mount.
   useEffect(() => {
     logoY.value = withTiming(-150, {
       duration: 1000,
@@ -30,6 +32,7 @@ export default function Index() {
     });
   }, [lockScreenOpacity, logoScale, logoY]);
 
+  // Animated styles derived from the shared values above.
   const logoAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: logoY.value }, { scale: logoScale.value }],
@@ -42,6 +45,7 @@ export default function Index() {
     };
   });
 
+  // Splash + auth gate: the logo badge animates up to reveal LockScreen beneath it.
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.logoContainer, styles.logoBadge, logoAnimatedStyle]}>

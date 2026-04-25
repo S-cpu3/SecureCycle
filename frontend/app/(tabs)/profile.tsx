@@ -13,6 +13,7 @@ import { getExportData, getHomeCycleData } from "@/dao/cycleDao";
 import { ensurePrimaryUser, updateUserPin, updateUserProfile, UserProfile } from "@/dao/userDao";
 import { getSecuritySettings, saveShareToken, setBiometricEnabled } from "@/dao/securityDao";
 
+// Local types for the security settings snapshot and the QR/PDF share payload.
 type SecurityState = {
   biometric_enabled: number;
   failed_attempts: number;
@@ -44,6 +45,7 @@ type SharePayload = {
   }[];
 };
 
+// Utility helpers: date formatting, date-picker conversion, and share token generation.
 function createShareToken() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -77,6 +79,7 @@ function toIsoBirthDate(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
+// PDF HTML template: used by the doctor-export feature to produce a printable cycle summary.
 function buildPdfHtml(payload: SharePayload) {
   const patientName = `${payload.patient.firstName} ${payload.patient.lastName}`.trim() || "SafeCycle Demo User";
   const rows = payload.recentEntries
@@ -121,6 +124,8 @@ function buildPdfHtml(payload: SharePayload) {
 
 export default function Profile() {
   const db = useDatabase();
+
+  // State: user profile, security settings, cycle snapshot, edit fields, and modal visibility flags.
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [security, setSecurity] = useState<SecurityState | null>(null);
   const [phaseLabel, setPhaseLabel] = useState("");
@@ -138,8 +143,9 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isFaceIdBusy, setIsFaceIdBusy] = useState(false);
-  const isExpoGo = Constants.appOwnership === "expo";
+  const isExpoGo = Constants.executionEnvironment === "storeClient";
 
+  // Data loading: pulls profile, security state, and cycle summary on every tab focus.
   useFocusEffect(
     useCallback(() => {
       async function load() {
@@ -174,6 +180,7 @@ export default function Profile() {
     setSecurity(securityState);
   };
 
+  // Profile save: writes updated name and birth date to the database.
   const handleSaveProfile = async () => {
     if (!profile) {
       return;
@@ -223,6 +230,7 @@ export default function Profile() {
     setShowBirthDatePicker(false);
   };
 
+  // PIN change: validates length and match before hashing and persisting the new PIN.
   const handleChangePin = async () => {
     if (!profile) {
       return;
@@ -244,6 +252,7 @@ export default function Profile() {
     Alert.alert("PIN Updated", "The app PIN has been updated.");
   };
 
+  // Biometric handlers: prompt Face ID/fingerprint to enable, or disable without re-authentication.
   const handleEnableBiometrics = async () => {
     if (!profile) {
       return;
@@ -292,6 +301,7 @@ export default function Profile() {
     Alert.alert("Disabled", "Biometric unlock has been turned off.");
   };
 
+  // Share payload builder: combines export data and cycle summary into a single signed object.
   const buildSharePayload = async () => {
     if (!profile) {
       return null;
@@ -336,6 +346,7 @@ export default function Profile() {
     } satisfies SharePayload;
   };
 
+  // PDF export: renders the share payload as HTML and opens the system share sheet.
   const handleExportPdf = async () => {
     setIsExporting(true);
     try {
@@ -369,6 +380,7 @@ export default function Profile() {
     }
   };
 
+  // QR handler: builds the share payload and opens the QR modal for doctor sharing.
   const handleShowQr = async () => {
     try {
       const payload = await buildSharePayload();
@@ -388,6 +400,7 @@ export default function Profile() {
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        {/* Hero section: avatar initials, full name, privacy badges, and biometric status */}
         <View style={styles.hero}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -409,6 +422,7 @@ export default function Profile() {
           </View>
         </View>
 
+        {/* Stat cards: cycle length, current cycle day, and days until next period */}
         <View style={styles.statRow}>
           <Card style={[styles.statCard, styles.statCardSpacer]}>
             <Card.Content style={styles.statCardContent}>
@@ -433,6 +447,7 @@ export default function Profile() {
           </Card>
         </View>
 
+        {/* Profile details card: first name, last name, and birthday inputs */}
         <Card style={styles.sectionCard}>
           <Card.Content>
             <View style={styles.sectionHeader}>
@@ -452,6 +467,7 @@ export default function Profile() {
           </Card.Content>
         </Card>
 
+        {/* Security card: PIN change fields and Face ID enable/disable controls */}
         <Card style={styles.sectionCard}>
           <Card.Content>
             <View style={styles.sectionHeader}>
@@ -480,6 +496,7 @@ export default function Profile() {
           </Card.Content>
         </Card>
 
+        {/* Doctor export card: PDF and QR share actions */}
         <Card style={styles.sectionCard}>
           <Card.Content>
             <View style={styles.sectionHeader}>
@@ -517,6 +534,7 @@ export default function Profile() {
         </Card>
       </ScrollView>
 
+      {/* QR share modal */}
       <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -537,6 +555,7 @@ export default function Profile() {
         </View>
       </Modal>
 
+      {/* iOS birth date picker modal; Android uses the inline native picker below */}
       <Modal visible={showBirthDatePicker && Platform.OS === "ios"} transparent animationType="fade" onRequestClose={() => setShowBirthDatePicker(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.dateModalCard}>

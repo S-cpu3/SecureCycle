@@ -15,6 +15,7 @@ export default function DbDebugScreen() {
   const [dbFilePath, setDbFilePath] = useState<string>("");
   const [error, setError] = useState<string>("");
 
+  // Health check: queries sqlite_master for all tables and counts rows in Users, Cycles, and Entries.
   const runHealthCheck = useCallback(async () => {
     if (!db) {
       setError("Database context is not ready.");
@@ -54,6 +55,7 @@ export default function DbDebugScreen() {
     }
   }, [db]);
 
+  // Runs the health check automatically on mount.
   useEffect(() => {
     runHealthCheck();
   }, [runHealthCheck]);
@@ -62,6 +64,7 @@ export default function DbDebugScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.header}>DB Debug</Text>
 
+      {/* Status card: connection info, DB file path, error message, and manual re-run button */}
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.sectionTitle}>Status</Text>
@@ -75,6 +78,7 @@ export default function DbDebugScreen() {
         </Card.Content>
       </Card>
 
+      {/* Tables card: lists every non-system SQLite table found in the database */}
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.sectionTitle}>Discovered Tables</Text>
@@ -91,6 +95,7 @@ export default function DbDebugScreen() {
         </Card.Content>
       </Card>
 
+      {/* Row counts card: Users, Cycles, and Entries totals */}
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.sectionTitle}>Core Row Counts</Text>

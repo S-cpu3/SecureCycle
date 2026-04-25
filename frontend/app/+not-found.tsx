@@ -1,6 +1,7 @@
 import { View, StyleSheet } from "react-native";
 import { Link, Stack } from "expo-router";
 
+// Fallback screen shown when no route matches anywhere in the app; links back to the root.
 export default function NotFoundScreen() {
     return (
         <>

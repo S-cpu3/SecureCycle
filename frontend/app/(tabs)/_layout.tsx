@@ -2,20 +2,8 @@ import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { theme } from "@/theme/theme";
 
-/**
- * Renders the main tab-based navigation layout for the app.
- *
- * Configures shared tab and header styling (active tint, background, text color,
- * and header shadow visibility), and defines three primary tabs:
- * - `history` (calendar icon)
- * - `index` (home icon)
- * - `profile` (person icon)
- *
- * Each tab uses a focused/unfocused Ionicons variant and hides the tab title text.
- * A `db-debug` tab is present in the file but intentionally disabled/commented out.
- *
- * @returns The configured `<Tabs />` navigator for the `(tabs)` route group.
- */
+// Tab navigator layout: defines the three main app tabs (History, Home, Profile)
+// and applies shared header/tab-bar styling from the theme.
 export default function TabLayout() {
   return(
     <Tabs
@@ -32,8 +20,8 @@ export default function TabLayout() {
       }}
     >
 
-
-      <Tabs.Screen 
+      {/* Calendar view for logging and reviewing saved periods */}
+      <Tabs.Screen
         name="history"
         options={{ 
           title: "", 
@@ -43,18 +31,20 @@ export default function TabLayout() {
         }}
       />
 
-      <Tabs.Screen 
-        name="index" 
-        options={{ 
-          title: "", 
+      {/* Home dashboard showing the cycle ring and recent log entries */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
-          ) 
+          )
         }}
       />
 
-      <Tabs.Screen 
-        name="profile" 
+      {/* User profile, PIN / biometric security settings, and doctor export */}
+      <Tabs.Screen
+        name="profile"
         options={{ 
           title: "",
           tabBarIcon: ({ color, focused }) => (

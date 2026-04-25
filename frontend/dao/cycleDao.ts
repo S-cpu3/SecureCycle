@@ -177,11 +177,14 @@ export async function logPeriod(
   startDate: Date,
   length: number
 ) {
+  // Normalize incoming dates and compute the saved period/cycle bounds.
   const normalizedStart = startOfDay(startDate);
   const normalizedEnd = addDays(normalizedStart, Math.max(1, length) - 1);
   const cycleEnd = addDays(normalizedStart, 27);
   const startValue = isoDate(normalizedStart);
   const endValue = isoDate(normalizedEnd);
+
+  // Fetch existing cycle starts to enforce a minimum spacing rule.
   const cycleRows = await db.getAllAsync<CycleStartRow>(
     `SELECT start_date
      FROM Cycles
@@ -197,7 +200,10 @@ export async function logPeriod(
     }
   }
 
+  // Remove any existing cycle row for this exact start date.
   await db.runAsync(`DELETE FROM Cycles WHERE user_id = ? AND start_date = ?`, [userId, startValue]);
+
+  // Clear period entries in the selected range to avoid duplicates.
   await db.runAsync(
     `DELETE FROM Entries
      WHERE user_id = ?
@@ -207,12 +213,14 @@ export async function logPeriod(
     [userId, startValue, endValue]
   );
 
+  // Insert the cycle window (defaulting to a 28-day cycle).
   await db.runAsync(
     `INSERT INTO Cycles (start_date, end_date, created_at, user_id)
      VALUES (?, ?, ?, ?)`,
     [startValue, isoDate(cycleEnd), new Date().toISOString(), userId]
   );
 
+  // Insert one period entry per day with a simple intensity taper.
   for (let offset = 0; offset < length; offset += 1) {
     const entryDate = isoDate(addDays(normalizedStart, offset));
     await db.runAsync(
