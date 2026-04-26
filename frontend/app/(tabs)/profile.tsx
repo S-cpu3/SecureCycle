@@ -1,17 +1,37 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import {
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 import { Button, Card, Divider, Text } from "react-native-paper";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import * as LocalAuthentication from "expo-local-authentication";
 import Constants from "expo-constants";
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import QRCode from "react-native-qrcode-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "@/theme/theme";
 import { useDatabase } from "@/hooks/use-database";
 import { getExportData, getHomeCycleData } from "@/dao/cycleDao";
-import { ensurePrimaryUser, updateUserPin, updateUserProfile, UserProfile } from "@/dao/userDao";
-import { getSecuritySettings, saveShareToken, setBiometricEnabled } from "@/dao/securityDao";
+import {
+  ensurePrimaryUser,
+  updateUserPin,
+  updateUserProfile,
+  UserProfile,
+} from "@/dao/userDao";
+import {
+  getSecuritySettings,
+  saveShareToken,
+  setBiometricEnabled,
+} from "@/dao/securityDao";
 
 type SecurityState = {
   biometric_enabled: number;
@@ -66,8 +86,12 @@ function formatBirthDate(value: string) {
 }
 
 function toPickerDate(value: string) {
-  const parsed = value ? new Date(`${value}T00:00:00`) : new Date("1998-01-01T00:00:00");
-  return Number.isNaN(parsed.getTime()) ? new Date("1998-01-01T00:00:00") : parsed;
+  const parsed = value
+    ? new Date(`${value}T00:00:00`)
+    : new Date("1998-01-01T00:00:00");
+  return Number.isNaN(parsed.getTime())
+    ? new Date("1998-01-01T00:00:00")
+    : parsed;
 }
 
 function toIsoBirthDate(value: Date) {
@@ -78,11 +102,13 @@ function toIsoBirthDate(value: Date) {
 }
 
 function buildPdfHtml(payload: SharePayload) {
-  const patientName = `${payload.patient.firstName} ${payload.patient.lastName}`.trim() || "SafeCycle Demo User";
+  const patientName =
+    `${payload.patient.firstName} ${payload.patient.lastName}`.trim() ||
+    "SafeCycle Demo User";
   const rows = payload.recentEntries
     .map(
       (entry) =>
-        `<tr><td>${entry.date}</td><td>${entry.entry_type}</td><td>${entry.intensity ?? "-"}</td><td>${entry.symptom_type ?? "-"}</td><td>${entry.notes ?? "-"}</td></tr>`
+        `<tr><td>${entry.date}</td><td>${entry.entry_type}</td><td>${entry.intensity ?? "-"}</td><td>${entry.symptom_type ?? "-"}</td><td>${entry.notes ?? "-"}</td></tr>`,
     )
     .join("");
 
@@ -129,7 +155,9 @@ export default function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [birthDateDraft, setBirthDateDraft] = useState(new Date("1998-01-01T00:00:00"));
+  const [birthDateDraft, setBirthDateDraft] = useState(
+    new Date("1998-01-01T00:00:00"),
+  );
   const [showBirthDatePicker, setShowBirthDatePicker] = useState(false);
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -155,13 +183,15 @@ export default function Profile() {
         setBirthDateDraft(toPickerDate(user.birth_date ?? ""));
         setPhaseLabel(cycle?.phaseLabel ?? "No cycle logged");
         setCycleDay(cycle?.currentCycleDay ?? 0);
-        setDaysUntilPeriod(cycle ? Math.max(0, cycle.cycleLength - cycle.currentCycleDay) : 0);
+        setDaysUntilPeriod(
+          cycle ? Math.max(0, cycle.cycleLength - cycle.currentCycleDay) : 0,
+        );
       }
 
       load().catch((error) => {
         console.error("Failed to load profile data", error);
       });
-    }, [db])
+    }, [db]),
   );
 
   const fullName = useMemo(() => {
@@ -202,7 +232,10 @@ export default function Profile() {
     setShowBirthDatePicker(true);
   };
 
-  const handleBirthDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleBirthDateChange = (
+    event: DateTimePickerEvent,
+    selectedDate?: Date,
+  ) => {
     if (Platform.OS === "android") {
       setShowBirthDatePicker(false);
     }
@@ -250,17 +283,25 @@ export default function Profile() {
     }
 
     if (isExpoGo) {
-      Alert.alert("Development Build Required", "Face ID needs a development build on iPhone. Expo Go does not support it.");
+      Alert.alert(
+        "Development Build Required",
+        "Face ID needs a development build on iPhone. Expo Go does not support it.",
+      );
       return;
     }
 
     setIsFaceIdBusy(true);
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync() : false;
+      const isEnrolled = hasHardware
+        ? await LocalAuthentication.isEnrolledAsync()
+        : false;
 
       if (!hasHardware || !isEnrolled) {
-        Alert.alert("Unavailable", "Face ID or biometrics are not enrolled on this device.");
+        Alert.alert(
+          "Unavailable",
+          "Face ID or biometrics are not enrolled on this device.",
+        );
         return;
       }
 
@@ -270,13 +311,19 @@ export default function Profile() {
       });
 
       if (!result.success) {
-        Alert.alert("Not Enabled", result.error || "Biometric setup was cancelled.");
+        Alert.alert(
+          "Not Enabled",
+          result.error || "Biometric setup was cancelled.",
+        );
         return;
       }
 
       await setBiometricEnabled(db, profile.user_id, true);
       await reloadSecurity(profile.user_id);
-      Alert.alert("Enabled", "Biometric unlock now requires Face ID or biometrics only.");
+      Alert.alert(
+        "Enabled",
+        "Biometric unlock now requires Face ID or biometrics only.",
+      );
     } finally {
       setIsFaceIdBusy(false);
     }
@@ -363,7 +410,10 @@ export default function Profile() {
       }
     } catch (error) {
       console.error("Failed to export PDF", error);
-      Alert.alert("Export Failed", "PDF export is unavailable until the required Expo packages are installed.");
+      Alert.alert(
+        "Export Failed",
+        "PDF export is unavailable until the required Expo packages are installed.",
+      );
     } finally {
       setIsExporting(false);
     }
@@ -387,7 +437,11 @@ export default function Profile() {
 
   return (
     <>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.hero}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -399,12 +453,22 @@ export default function Profile() {
 
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
-              <MaterialCommunityIcons name="shield-check" size={16} color={theme.colors.text} />
+              <MaterialCommunityIcons
+                name="shield-check"
+                size={16}
+                color={theme.colors.text}
+              />
               <Text style={styles.badgeText}>Private</Text>
             </View>
             <View style={[styles.badge, styles.badgeSpacer]}>
-              <MaterialCommunityIcons name="face-recognition" size={16} color={theme.colors.text} />
-              <Text style={styles.badgeText}>{security?.biometric_enabled ? "Biometric ready" : "PIN only"}</Text>
+              <MaterialCommunityIcons
+                name="face-recognition"
+                size={16}
+                color={theme.colors.text}
+              />
+              <Text style={styles.badgeText}>
+                {security?.biometric_enabled ? "Biometric ready" : "PIN only"}
+              </Text>
             </View>
           </View>
         </View>
@@ -412,21 +476,33 @@ export default function Profile() {
         <View style={styles.statRow}>
           <Card style={[styles.statCard, styles.statCardSpacer]}>
             <Card.Content style={styles.statCardContent}>
-              <MaterialCommunityIcons name="calendar-month" size={22} color={theme.colors.secondary} />
+              <MaterialCommunityIcons
+                name="calendar-month"
+                size={22}
+                color={theme.colors.secondary}
+              />
               <Text style={styles.statValue}>28 days</Text>
               <Text style={styles.statLabel}>Cycle length</Text>
             </Card.Content>
           </Card>
           <Card style={[styles.statCard, styles.statCardSpacer]}>
             <Card.Content style={styles.statCardContent}>
-              <MaterialCommunityIcons name="heart-pulse" size={22} color={theme.colors.secondary} />
+              <MaterialCommunityIcons
+                name="heart-pulse"
+                size={22}
+                color={theme.colors.secondary}
+              />
               <Text style={styles.statValue}>Day {cycleDay}</Text>
               <Text style={styles.statLabel}>Cycle day</Text>
             </Card.Content>
           </Card>
           <Card style={styles.statCard}>
             <Card.Content style={styles.statCardContent}>
-              <MaterialCommunityIcons name="clock-outline" size={22} color={theme.colors.secondary} />
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={22}
+                color={theme.colors.secondary}
+              />
               <Text style={styles.statValue}>{daysUntilPeriod} days</Text>
               <Text style={styles.statLabel}>Until next period</Text>
             </Card.Content>
@@ -440,13 +516,32 @@ export default function Profile() {
               <Text style={styles.sectionSubtitle}>Basic details</Text>
             </View>
             <Divider style={styles.divider} />
-            <TextInput value={firstName} onChangeText={setFirstName} placeholder="First name" placeholderTextColor="rgba(244, 243, 238, 0.45)" style={styles.input} />
-            <TextInput value={lastName} onChangeText={setLastName} placeholder="Last name" placeholderTextColor="rgba(244, 243, 238, 0.45)" style={styles.input} />
+            <TextInput
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="First name"
+              placeholderTextColor="rgba(244, 243, 238, 0.45)"
+              style={styles.input}
+            />
+            <TextInput
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Last name"
+              placeholderTextColor="rgba(244, 243, 238, 0.45)"
+              style={styles.input}
+            />
             <Pressable style={styles.dateButton} onPress={openBirthDatePicker}>
               <Text style={styles.dateButtonLabel}>Birthday</Text>
-              <Text style={styles.dateButtonValue}>{formatBirthDate(birthDate)}</Text>
+              <Text style={styles.dateButtonValue}>
+                {formatBirthDate(birthDate)}
+              </Text>
             </Pressable>
-            <Button mode="contained" style={styles.primaryButton} onPress={handleSaveProfile} loading={isSaving}>
+            <Button
+              mode="contained"
+              style={styles.primaryButton}
+              onPress={handleSaveProfile}
+              loading={isSaving}
+            >
               Save profile
             </Button>
           </Card.Content>
@@ -460,22 +555,55 @@ export default function Profile() {
             </View>
             <Divider style={styles.divider} />
             <Text style={styles.snapshotValue}>{phaseLabel}</Text>
-            <Text style={styles.supportText}>Face ID unlock does not fall back to the device passcode.</Text>
-            <TextInput value={newPin} onChangeText={setNewPin} placeholder="New 6-digit PIN" placeholderTextColor="rgba(244, 243, 238, 0.45)" keyboardType="number-pad" maxLength={6} style={styles.input} />
-            <TextInput value={confirmPin} onChangeText={setConfirmPin} placeholder="Confirm new PIN" placeholderTextColor="rgba(244, 243, 238, 0.45)" keyboardType="number-pad" maxLength={6} style={styles.input} />
-            <Button mode="contained" style={styles.primaryButton} onPress={handleChangePin}>
+            <Text style={styles.supportText}>
+              Face ID unlock does not fall back to the device passcode.
+            </Text>
+            <TextInput
+              value={newPin}
+              onChangeText={setNewPin}
+              placeholder="New 6-digit PIN"
+              placeholderTextColor="rgba(244, 243, 238, 0.45)"
+              keyboardType="number-pad"
+              maxLength={6}
+              style={styles.input}
+            />
+            <TextInput
+              value={confirmPin}
+              onChangeText={setConfirmPin}
+              placeholder="Confirm new PIN"
+              placeholderTextColor="rgba(244, 243, 238, 0.45)"
+              keyboardType="number-pad"
+              maxLength={6}
+              style={styles.input}
+            />
+            <Button
+              mode="contained"
+              style={styles.primaryButton}
+              onPress={handleChangePin}
+            >
               Update PIN
             </Button>
             <View style={styles.inlineButtons}>
-              <Button mode="contained" style={[styles.primaryButton, styles.inlineButton]} onPress={handleEnableBiometrics} loading={isFaceIdBusy}>
+              <Button
+                mode="contained"
+                style={[styles.primaryButton, styles.inlineButton]}
+                onPress={handleEnableBiometrics}
+                loading={isFaceIdBusy}
+              >
                 Enable Face ID
               </Button>
-              <Button mode="outlined" textColor={theme.colors.text} style={[styles.secondaryButton, styles.inlineButton]} onPress={handleDisableBiometrics}>
+              <Button
+                mode="outlined"
+                textColor={theme.colors.text}
+                style={[styles.secondaryButton, styles.inlineButton]}
+                onPress={handleDisableBiometrics}
+              >
                 Disable
               </Button>
             </View>
             <Text style={styles.statusText}>
-              Biometric status: {security?.biometric_enabled ? "enabled" : "disabled"}
+              Biometric status:{" "}
+              {security?.biometric_enabled ? "enabled" : "disabled"}
             </Text>
           </Card.Content>
         </Card>
@@ -484,32 +612,56 @@ export default function Profile() {
           <Card.Content>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Doctor export</Text>
-              <Text style={styles.sectionSubtitle}>Share a summary when needed</Text>
+              <Text style={styles.sectionSubtitle}>
+                Share a summary when needed
+              </Text>
             </View>
             <Divider style={styles.divider} />
             <View style={styles.row}>
               <View style={styles.rowIcon}>
-                <MaterialCommunityIcons name="file-pdf-box" size={18} color={theme.colors.background} />
+                <MaterialCommunityIcons
+                  name="file-pdf-box"
+                  size={18}
+                  color={theme.colors.background}
+                />
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>PDF export</Text>
-                <Text style={styles.rowDescription}>Create a printable cycle summary.</Text>
+                <Text style={styles.rowDescription}>
+                  Create a printable cycle summary.
+                </Text>
               </View>
             </View>
             <View style={styles.row}>
               <View style={styles.rowIcon}>
-                <MaterialCommunityIcons name="qrcode" size={18} color={theme.colors.background} />
+                <MaterialCommunityIcons
+                  name="qrcode"
+                  size={18}
+                  color={theme.colors.background}
+                />
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>Doctor QR</Text>
-                <Text style={styles.rowDescription}>Show a quick share code for viewing on another device.</Text>
+                <Text style={styles.rowDescription}>
+                  Show a quick share code for viewing on another device.
+                </Text>
               </View>
             </View>
             <View style={styles.inlineButtons}>
-              <Button mode="contained" style={[styles.primaryButton, styles.inlineButton]} onPress={handleExportPdf} loading={isExporting}>
+              <Button
+                mode="contained"
+                style={[styles.primaryButton, styles.inlineButton]}
+                onPress={handleExportPdf}
+                loading={isExporting}
+              >
                 Export PDF
               </Button>
-              <Button mode="outlined" textColor={theme.colors.text} style={[styles.secondaryButton, styles.inlineButton]} onPress={handleShowQr}>
+              <Button
+                mode="outlined"
+                textColor={theme.colors.text}
+                style={[styles.secondaryButton, styles.inlineButton]}
+                onPress={handleShowQr}
+              >
                 Show QR
               </Button>
             </View>
@@ -517,27 +669,44 @@ export default function Profile() {
         </Card>
       </ScrollView>
 
-      <Modal visible={showQrModal} transparent animationType="fade" onRequestClose={() => setShowQrModal(false)}>
+      <Modal
+        visible={showQrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQrModal(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Doctor share QR</Text>
-            <Text style={styles.modalText}>Scan this code to read the current local demo payload.</Text>
+            <Text style={styles.modalText}>
+              Scan this code to read the current local demo payload.
+            </Text>
             {sharePayload ? (
               <>
                 <View style={styles.qrWrap}>
                   <QRCode value={JSON.stringify(sharePayload)} size={220} />
                 </View>
-                <Text style={styles.modalToken}>Share token: {sharePayload.token}</Text>
+                <Text style={styles.modalToken}>
+                  Share token: {sharePayload.token}
+                </Text>
               </>
             ) : null}
-            <Pressable style={styles.modalClose} onPress={() => setShowQrModal(false)}>
+            <Pressable
+              style={styles.modalClose}
+              onPress={() => setShowQrModal(false)}
+            >
               <Text style={styles.modalCloseText}>Close</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={showBirthDatePicker && Platform.OS === "ios"} transparent animationType="fade" onRequestClose={() => setShowBirthDatePicker(false)}>
+      <Modal
+        visible={showBirthDatePicker && Platform.OS === "ios"}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBirthDatePicker(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.dateModalCard}>
             <Text style={styles.modalTitle}>Birthday</Text>
@@ -550,10 +719,19 @@ export default function Profile() {
               textColor={theme.colors.background}
             />
             <View style={styles.inlineButtons}>
-              <Button mode="outlined" textColor={theme.colors.background} style={[styles.dateModalButton, styles.dateModalSecondary]} onPress={() => setShowBirthDatePicker(false)}>
+              <Button
+                mode="outlined"
+                textColor={theme.colors.background}
+                style={[styles.dateModalButton, styles.dateModalSecondary]}
+                onPress={() => setShowBirthDatePicker(false)}
+              >
                 Cancel
               </Button>
-              <Button mode="contained" style={[styles.dateModalButton, styles.dateModalPrimary]} onPress={confirmBirthDate}>
+              <Button
+                mode="contained"
+                style={[styles.dateModalButton, styles.dateModalPrimary]}
+                onPress={confirmBirthDate}
+              >
                 Done
               </Button>
             </View>
@@ -573,6 +751,8 @@ export default function Profile() {
     </>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {

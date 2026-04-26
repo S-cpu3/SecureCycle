@@ -7,7 +7,11 @@ import { router } from "expo-router";
 import CycleTracker, { CycleDay } from "@/components/CycleTracker";
 import { theme } from "@/theme/theme";
 import { useDatabase } from "@/hooks/use-database";
-import { getHomeCycleData, HomeCycleData, HomeCycleState } from "@/dao/cycleDao";
+import {
+  getHomeCycleData,
+  HomeCycleData,
+  HomeCycleState,
+} from "@/dao/cycleDao";
 import { ensurePrimaryUser } from "@/dao/userDao";
 
 export const metadata = {
@@ -54,7 +58,7 @@ export default function Index() {
         console.error("Failed to load cycle data", error);
         setIsLoading(false);
       });
-    }, [db])
+    }, [db]),
   );
 
   if (isLoading) {
@@ -69,8 +73,14 @@ export default function Index() {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.title}>Your cycle</Text>
-        <Text style={styles.emptyText}>Log a period in History to start tracking.</Text>
-        <Button mode="contained" style={styles.emptyButton} onPress={() => router.push("/(tabs)/history")}>
+        <Text style={styles.emptyText}>
+          Log a period in History to start tracking.
+        </Text>
+        <Button
+          mode="contained"
+          style={styles.emptyButton}
+          onPress={() => router.push("/(tabs)/history")}
+        >
           Open History
         </Button>
       </View>
@@ -80,7 +90,11 @@ export default function Index() {
   const days = buildDays(data);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Your cycle</Text>
         <Text style={styles.subtitle}>{data.phaseDetail}</Text>
@@ -88,27 +102,42 @@ export default function Index() {
 
       <View style={styles.trackerWrap}>
         <CycleTracker
-          monthLabel={new Date().toLocaleString(undefined, { month: "long" })}
+          label="Cycle day"
           dayLabel={`${data.currentCycleDay}`}
           statusLabel={data.phaseLabel}
-          subtitle={data.currentDateLabel}
+          subtitle={`${data.currentDateLabel} · Day ${data.currentCycleDay} of ${data.cycleLength}`}
           days={days}
+          currentDay={data.currentCycleDay}
         />
       </View>
 
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <MaterialCommunityIcons name="water" size={20} color={theme.colors.secondary} />
+          <MaterialCommunityIcons
+            name="water"
+            size={20}
+            color={theme.colors.secondary}
+          />
           <Text style={styles.summaryValue}>{data.periodDays.length} days</Text>
           <Text style={styles.summaryLabel}>Period</Text>
         </View>
         <View style={styles.summaryCard}>
-          <MaterialCommunityIcons name={"star-four-points" as any} size={20} color={theme.colors.secondary} />
-          <Text style={styles.summaryValue}>{data.fertileDays.length} days</Text>
+          <MaterialCommunityIcons
+            name={"star-four-points" as any}
+            size={20}
+            color={theme.colors.secondary}
+          />
+          <Text style={styles.summaryValue}>
+            {data.fertileDays.length} days
+          </Text>
           <Text style={styles.summaryLabel}>Fertile</Text>
         </View>
         <View style={[styles.summaryCard, styles.summaryCardLast]}>
-          <MaterialCommunityIcons name="calendar-heart" size={20} color={theme.colors.secondary} />
+          <MaterialCommunityIcons
+            name="calendar-heart"
+            size={20}
+            color={theme.colors.secondary}
+          />
           <Text style={styles.summaryValue}>Day {data.ovulationDay}</Text>
           <Text style={styles.summaryLabel}>Ovulation</Text>
         </View>
@@ -117,13 +146,22 @@ export default function Index() {
       <View style={styles.timelineCard}>
         <Text style={styles.timelineTitle}>Recent logs</Text>
         {data.entries.map((entry) => (
-          <View key={`${entry.date}-${entry.entry_type}-${entry.symptom_type ?? "base"}`} style={styles.timelineRow}>
+          <View
+            key={`${entry.date}-${entry.entry_type}-${entry.symptom_type ?? "base"}`}
+            style={styles.timelineRow}
+          >
             <View style={styles.timelineDot} />
             <View style={styles.timelineText}>
               <Text style={styles.timelineHeading}>
-                {entry.entry_type === "period" ? "Period" : "Symptom"} · {entry.date}
+                {entry.entry_type === "period" ? "Period" : "Symptom"} ·{" "}
+                {entry.date}
               </Text>
-              <Text style={styles.timelineBody}>{entry.notes || entry.symptom_type || entry.intensity || "Logged"}</Text>
+              <Text style={styles.timelineBody}>
+                {entry.notes ||
+                  entry.symptom_type ||
+                  entry.intensity ||
+                  "Logged"}
+              </Text>
             </View>
           </View>
         ))}

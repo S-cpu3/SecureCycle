@@ -24,11 +24,32 @@ export type SavedPeriod = {
   length: number;
 };
 
+export type CycleForDate = {
+  cycleId: number;
+  startDate: string;
+  endDate: string | null;
+  periodId: number | null;
+  dayNumber: number;
+  isPeriodDay: boolean;
+};
+
 export type CalendarDayState = {
   kind: "period" | "fertile" | "ovulation";
 };
 
 export type HomeCycleState = HomeCycleData | null;
+
+export type DailyLogEntry = {
+  entry_id: number;
+  user_id: number;
+  cycle_id: number;
+  period_id: number | null;
+  date: string;
+  entry_type: string;
+  intensity: string | null;
+  symptom_type: string | null;
+  notes: string | null;
+};
 
 type EntryRow = {
   date: string;
@@ -44,6 +65,13 @@ type PeriodEntryRow = {
 
 type CycleStartRow = {
   start_date: string;
+};
+
+type CycleForDateRow = {
+  cycle_id: number;
+  start_date: string;
+  end_date: string | null;
+  period_id: number | null;
 };
 
 function addDays(date: Date, days: number) {
@@ -178,7 +206,8 @@ export async function logPeriod(
   length: number
 ) {
   const normalizedStart = startOfDay(startDate);
-  const normalizedEnd = addDays(normalizedStart, Math.max(1, length) - 1);
+  const normalizedLength = Math.max(1, length);
+  const normalizedEnd = addDays(normalizedStart, normalizedLength - 1);
   const cycleEnd = addDays(normalizedStart, 27);
   const startValue = isoDate(normalizedStart);
   const endValue = isoDate(normalizedEnd);
@@ -197,30 +226,61 @@ export async function logPeriod(
     }
   }
 
-  await db.runAsync(`DELETE FROM Cycles WHERE user_id = ? AND start_date = ?`, [userId, startValue]);
-  await db.runAsync(
-    `DELETE FROM Entries
-     WHERE user_id = ?
-     AND entry_type = 'period'
-     AND date >= ?
-     AND date <= ?`,
-    [userId, startValue, endValue]
-  );
-
-  await db.runAsync(
-    `INSERT INTO Cycles (start_date, end_date, created_at, user_id)
-     VALUES (?, ?, ?, ?)`,
-    [startValue, isoDate(cycleEnd), new Date().toISOString(), userId]
-  );
-
-  for (let offset = 0; offset < length; offset += 1) {
-    const entryDate = isoDate(addDays(normalizedStart, offset));
-    await db.runAsync(
-      `INSERT INTO Entries (user_id, date, entry_type, intensity, notes, symptom_type)
-       VALUES (?, ?, 'period', ?, ?, NULL)`,
-      [userId, entryDate, offset < 2 ? "heavy" : offset < 4 ? "medium" : "light", null]
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const existingCycles = await tx.getAllAsync<{ cycle_id: number }>(
+      `SELECT cycle_id
+       FROM Cycles
+       WHERE user_id = ?
+       AND start_date = ?`,
+      [userId, startValue]
     );
-  }
+
+    for (const existingCycle of existingCycles) {
+      await tx.runAsync(`DELETE FROM Entries WHERE cycle_id = ?`, [existingCycle.cycle_id]);
+      await tx.runAsync(`DELETE FROM Periods WHERE cycle_id = ?`, [existingCycle.cycle_id]);
+      await tx.runAsync(`DELETE FROM Cycles WHERE cycle_id = ?`, [existingCycle.cycle_id]);
+    }
+
+    await tx.runAsync(
+      `DELETE FROM Entries
+       WHERE user_id = ?
+       AND entry_type = 'period'
+       AND date >= ?
+       AND date <= ?`,
+      [userId, startValue, endValue]
+    );
+
+    const cycleInsert = await tx.runAsync(
+      `INSERT INTO Cycles (start_date, end_date, created_at, user_id)
+       VALUES (?, ?, ?, ?)`,
+      [startValue, isoDate(cycleEnd), new Date().toISOString(), userId]
+    );
+
+    const cycleId = cycleInsert.lastInsertRowId;
+    const periodInsert = await tx.runAsync(
+      `INSERT INTO Periods (cycle_id, user_id, start_date, end_date, total_days)
+       VALUES (?, ?, ?, ?, ?)`,
+      [cycleId, userId, startValue, endValue, normalizedLength]
+    );
+
+    const periodId = periodInsert.lastInsertRowId;
+
+    for (let offset = 0; offset < normalizedLength; offset += 1) {
+      const entryDate = isoDate(addDays(normalizedStart, offset));
+      await tx.runAsync(
+        `INSERT INTO Entries (user_id, cycle_id, period_id, date, entry_type, intensity, notes, symptom_type)
+         VALUES (?, ?, ?, ?, 'period', ?, ?, NULL)`,
+        [
+          userId,
+          cycleId,
+          periodId,
+          entryDate,
+          offset < 2 ? "heavy" : offset < 4 ? "medium" : "light",
+          null,
+        ]
+      );
+    }
+  });
 }
 
 export async function getSavedPeriods(db: SQLite.SQLiteDatabase, userId: number): Promise<SavedPeriod[]> {
@@ -262,6 +322,121 @@ export async function getSavedPeriods(db: SQLite.SQLiteDatabase, userId: number)
   }
 
   return groupedPeriods.slice(0, 6);
+}
+
+export async function getCycleForDate(
+  db: SQLite.SQLiteDatabase,
+  userId: number,
+  date: Date
+): Promise<CycleForDate | null> {
+  const dateValue = isoDate(startOfDay(date));
+  const row = await db.getFirstAsync<CycleForDateRow>(
+    `SELECT c.cycle_id, c.start_date, c.end_date, p.period_id
+     FROM Cycles c
+     LEFT JOIN Periods p
+       ON p.cycle_id = c.cycle_id
+       AND p.start_date <= ?
+       AND p.end_date >= ?
+     WHERE c.user_id = ?
+       AND c.start_date <= ?
+       AND (c.end_date IS NULL OR c.end_date >= ?)
+     ORDER BY c.start_date DESC
+     LIMIT 1`,
+    [dateValue, dateValue, userId, dateValue, dateValue]
+  );
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    cycleId: row.cycle_id,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    periodId: row.period_id,
+    dayNumber: differenceInDays(new Date(`${dateValue}T00:00:00`), new Date(`${row.start_date}T00:00:00`)) + 1,
+    isPeriodDay: row.period_id !== null,
+  };
+}
+
+export async function getEntriesForDate(
+  db: SQLite.SQLiteDatabase,
+  userId: number,
+  date: Date
+): Promise<DailyLogEntry[]> {
+  return db.getAllAsync<DailyLogEntry>(
+    `SELECT entry_id, user_id, cycle_id, period_id, date, entry_type, intensity, symptom_type, notes
+     FROM Entries
+     WHERE user_id = ?
+       AND date = ?
+     ORDER BY entry_id ASC`,
+    [userId, isoDate(startOfDay(date))]
+  );
+}
+
+export async function saveSymptomForDate(
+  db: SQLite.SQLiteDatabase,
+  userId: number,
+  date: Date,
+  symptomType: string,
+  intensity: string,
+  notes: string
+) {
+  const cycle = await getCycleForDate(db, userId, date);
+
+  if (!cycle) {
+    throw new Error("Choose a date inside a logged cycle before saving a symptom.");
+  }
+
+  const dateValue = isoDate(startOfDay(date));
+  const trimmedSymptomType = symptomType.trim();
+  const trimmedNotes = notes.trim();
+
+  if (!trimmedSymptomType) {
+    throw new Error("Choose a symptom before saving.");
+  }
+
+  const existing = await db.getFirstAsync<{ entry_id: number }>(
+    `SELECT entry_id
+     FROM Entries
+     WHERE user_id = ?
+       AND cycle_id = ?
+       AND date = ?
+       AND entry_type = 'symptom'
+     ORDER BY entry_id DESC
+     LIMIT 1`,
+    [userId, cycle.cycleId, dateValue]
+  );
+
+  if (existing) {
+    await db.runAsync(
+      `UPDATE Entries
+       SET period_id = ?, intensity = ?, notes = ?, symptom_type = ?
+       WHERE entry_id = ?`,
+      [
+        cycle.periodId,
+        intensity.trim() || null,
+        trimmedNotes || null,
+        trimmedSymptomType,
+        existing.entry_id,
+      ]
+    );
+    return;
+  }
+
+  await db.runAsync(
+    `INSERT INTO Entries (user_id, cycle_id, period_id, date, entry_type, intensity, notes, symptom_type)
+     VALUES (?, ?, ?, ?, 'symptom', ?, ?, ?)`,
+    [
+      userId,
+      cycle.cycleId,
+      cycle.periodId,
+      dateValue,
+      intensity.trim() || null,
+      trimmedNotes || null,
+      trimmedSymptomType,
+    ]
+  );
 }
 
 export async function getCalendarMonthData(
