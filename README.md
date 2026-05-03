@@ -1,3 +1,4 @@
+<img width="915" height="933" alt="image" src="https://github.com/user-attachments/assets/84ce07e8-3dce-450a-8109-ab1689dbb520" />
 SafeCycle is a privacy focused mobile app designed for tracking menstrual cycles and storing reproductive health information for women. All data is processed locally on the app and can be protected by biometrics and App PIN. Nobody has access to your health data not even us. Privacy is a standard not a suggestion. 
 
 ## Technologies:
