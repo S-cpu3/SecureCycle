@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { createPinSalt, hashPin } from "@/utils/hash";
+import { createPinSalt, hashPin, isValidPinHash } from "@/utils/hash";
 
 export type UserProfile = {
   user_id: number;
@@ -24,6 +24,16 @@ export async function getPrimaryUser(db: SQLite.SQLiteDatabase) {
      FROM Users
      ORDER BY user_id ASC
      LIMIT 1`
+  );
+}
+
+export async function getUserById(db: SQLite.SQLiteDatabase, userId: number) {
+  return db.getFirstAsync<UserProfile>(
+    `SELECT user_id, pin_hash, pin_salt, first_name, last_name, birth_date, auth_type, created_at
+     FROM Users
+     WHERE user_id = ?
+     LIMIT 1`,
+    [userId]
   );
 }
 
@@ -68,7 +78,7 @@ export async function updateUserProfile(
 
 export async function updateUserPin(db: SQLite.SQLiteDatabase, userId: number, pin: string) {
   const pinSalt = createPinSalt();
-  const pinHash = hashPin(pin, pinSalt);
+  const pinHash = await hashPin(pin, pinSalt);
 
   await db.runAsync(
     `UPDATE Users
@@ -78,12 +88,12 @@ export async function updateUserPin(db: SQLite.SQLiteDatabase, userId: number, p
   );
 }
 
-export async function verifyUserPin(db: SQLite.SQLiteDatabase, pin: string) {
-  const user = await ensurePrimaryUser(db);
+export async function verifyUserPin(db: SQLite.SQLiteDatabase, userId: number, pin: string) {
+  const user = await getUserById(db, userId);
 
-  if (!user.pin_hash || !user.pin_salt) {
+  if (!user || !isValidPinHash(user.pin_hash) || !user.pin_salt) {
     return false;
   }
 
-  return user.pin_hash === hashPin(pin, user.pin_salt);
+  return user.pin_hash === await hashPin(pin, user.pin_salt);
 }

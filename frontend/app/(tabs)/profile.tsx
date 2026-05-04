@@ -68,6 +68,10 @@ function createShareToken() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function toPinInput(value: string) {
+  return value.replace(/\D/g, "").slice(0, 6);
+}
+
 function formatBirthDate(value: string) {
   if (!value) {
     return "Select birthday";
@@ -261,7 +265,7 @@ export default function Profile() {
       return;
     }
 
-    if (newPin.length !== 6 || confirmPin.length !== 6) {
+    if (!/^\d{6}$/.test(newPin) || !/^\d{6}$/.test(confirmPin)) {
       Alert.alert("PIN Required", "Enter a 6-digit PIN in both fields.");
       return;
     }
@@ -560,20 +564,22 @@ export default function Profile() {
             </Text>
             <TextInput
               value={newPin}
-              onChangeText={setNewPin}
+              onChangeText={(value) => setNewPin(toPinInput(value))}
               placeholder="New 6-digit PIN"
               placeholderTextColor="rgba(244, 243, 238, 0.45)"
               keyboardType="number-pad"
               maxLength={6}
+              secureTextEntry
               style={styles.input}
             />
             <TextInput
               value={confirmPin}
-              onChangeText={setConfirmPin}
+              onChangeText={(value) => setConfirmPin(toPinInput(value))}
               placeholder="Confirm new PIN"
               placeholderTextColor="rgba(244, 243, 238, 0.45)"
               keyboardType="number-pad"
               maxLength={6}
+              secureTextEntry
               style={styles.input}
             />
             <Button

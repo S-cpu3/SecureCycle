@@ -14,12 +14,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDatabase } from "@/hooks/use-database";
-import { ensurePrimaryUser, updateUserPin, verifyUserPin } from "@/dao/userDao";
+import { ensurePrimaryUser, verifyUserPin } from "@/dao/userDao";
 import {
   clearFailedPinAttempts,
   getSecuritySettings,
   registerFailedPinAttempt,
 } from "@/dao/securityDao";
+import { isValidPinHash } from "@/utils/hash";
 
 const PIN_LENGTH = 6;
 
@@ -31,7 +32,9 @@ export default function LockScreen() {
   const [pin, setPin] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [isPinSet, setIsPinSet] = useState(false);
+  const [hasInvalidStoredPin, setHasInvalidStoredPin] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [lockedUntil, setLockedUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -104,15 +107,18 @@ export default function LockScreen() {
       const security = await getSecuritySettings(db, user.user_id);
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync() : false;
+      const hasPin = isValidPinHash(user.pin_hash) && Boolean(user.pin_salt);
+      const hasInvalidPin = Boolean(user.pin_hash) && !hasPin;
 
       setUserId(user.user_id);
-      setIsPinSet(Boolean(user.pin_hash));
+      setIsPinSet(hasPin);
+      setHasInvalidStoredPin(hasInvalidPin);
       setLockedUntil(security.lockout_until ? new Date(security.lockout_until).getTime() : 0);
       setCanUseBiometrics(hasHardware && isEnrolled);
       setIsBiometricEnabled(security.biometric_enabled === 1);
       setIsLoaded(true);
 
-      if (!user.pin_hash) {
+      if (!hasPin && !hasInvalidPin) {
         handleUnlock();
       }
     }
@@ -132,34 +138,40 @@ export default function LockScreen() {
   };
 
   const handlePinSubmit = async () => {
-    if (!userId || isLocked || pin.length !== PIN_LENGTH) {
+    if (!userId || isLocked || isVerifyingPin || pin.length !== PIN_LENGTH) {
       return;
     }
 
     if (!isPinSet) {
-      await updateUserPin(db, userId, pin);
-      await clearFailedPinAttempts(db, userId);
       setPin("");
-      setIsPinSet(true);
-      setLockedUntil(0);
-      handleUnlock();
+      Alert.alert(
+        "PIN Not Configured",
+        hasInvalidStoredPin
+          ? "The saved PIN hash is invalid. Reset the local app data, then set a new PIN from Profile."
+          : "Set your app PIN from Profile before using PIN unlock."
+      );
       return;
     }
 
-    const isValid = await verifyUserPin(db, pin);
+    setIsVerifyingPin(true);
+    try {
+      const isValid = await verifyUserPin(db, userId, pin);
 
-    if (isValid) {
-      await clearFailedPinAttempts(db, userId);
+      if (isValid) {
+        await clearFailedPinAttempts(db, userId);
+        setPin("");
+        setLockedUntil(0);
+        handleUnlock();
+        return;
+      }
+
+      const result = await registerFailedPinAttempt(db, userId);
       setPin("");
-      setLockedUntil(0);
-      handleUnlock();
-      return;
+      setLockedUntil(new Date(result.lockoutUntil).getTime());
+      Alert.alert("Incorrect PIN", `Try again in ${Math.ceil(result.backoffMs / 1000)} seconds.`);
+    } finally {
+      setIsVerifyingPin(false);
     }
-
-    const result = await registerFailedPinAttempt(db, userId);
-    setPin("");
-    setLockedUntil(new Date(result.lockoutUntil).getTime());
-    Alert.alert("Incorrect PIN", `Try again in ${Math.ceil(result.backoffMs / 1000)} seconds.`);
   };
 
   const handleBiometricAuth = async () => {
@@ -230,7 +242,7 @@ export default function LockScreen() {
 
                   handlePinChange(pin + num);
                 }}
-                disabled={(num === "" && (!canUseBiometrics || !isBiometricEnabled)) || isLocked || !isLoaded}
+                disabled={(num === "" && (!canUseBiometrics || !isBiometricEnabled)) || isLocked || !isLoaded || isVerifyingPin}
               >
                 {num === "back" ? "⌫" : num === "" ? " biometric " : num}
               </Button>
@@ -278,6 +290,10 @@ export default function LockScreen() {
         </Text>
         {isLocked ? (
           <Text style={styles.lockMessage}>Too many attempts. Try again in {lockSecondsRemaining}s.</Text>
+        ) : hasInvalidStoredPin ? (
+          <Text style={styles.lockMessage}>
+            The saved PIN cannot be verified. Reset local app data and set a new PIN from Profile.
+          </Text>
         ) : (
           <Text style={styles.lockMessageMuted}>
             {isBiometricEnabled && canUseBiometrics
@@ -289,10 +305,10 @@ export default function LockScreen() {
         <Button
           mode="contained"
           onPress={handlePinSubmit}
-          disabled={pin.length !== PIN_LENGTH || isLocked || !isLoaded}
+          disabled={pin.length !== PIN_LENGTH || isLocked || !isLoaded || !isPinSet || isVerifyingPin}
           style={styles.submitButton}
         >
-          {isPinSet ? "Unlock" : "Set PIN"}
+          Unlock
         </Button>
       </Animated.View>
     </View>
