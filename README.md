@@ -9,12 +9,13 @@ SafeCycle is a privacy and security focused mobile app designed for tracking men
 ## How to run application:
 
 ### Frontend:
-1) Make sure you're under the correct directory `frontend`
-2) Install necessary packages:
+1) Run the Command `git clone https://github.com/s-cpu3/Safecycle`
+3) Make sure you're under the correct directory `frontend` Run `cd Safecycle/frontend`
+4) Install necessary packages:
     ```bash
     npm install
     ```
-3) Start application: 
+5) Start application: 
     ```bash
     npx expo start
     ```
