@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { createPinSalt, hashPin } from "@/utils/hash";
+import { createPinSalt, hashPin, isLegacyBrokenHash } from "@/utils/hash";
 
 export type UserProfile = {
   user_id: number;
@@ -81,9 +81,15 @@ export async function updateUserPin(db: SQLite.SQLiteDatabase, userId: number, p
 export async function verifyUserPin(db: SQLite.SQLiteDatabase, pin: string) {
   const user = await ensurePrimaryUser(db);
 
-  if (!user.pin_hash || !user.pin_salt) {
+  // FIX: a hash left over from the old, broken sha256
+  if (!user.pin_hash || !user.pin_salt || isLegacyBrokenHash(user.pin_hash)) {
     return false;
   }
 
   return user.pin_hash === hashPin(pin, user.pin_salt);
+}
+
+//LockScreen, profile.tsx) should treat both as "this device needs a PIN".
+export function hasUsablePin(user: Pick<UserProfile, "pin_hash">) {
+  return Boolean(user.pin_hash) && !isLegacyBrokenHash(user.pin_hash);
 }
