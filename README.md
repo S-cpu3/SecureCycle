@@ -1,6 +1,8 @@
 <img width="915" height="933" alt="image" src="https://github.com/user-attachments/assets/84ce07e8-3dce-450a-8109-ab1689dbb520" />
 
- SecureCycle is a privacy and security focused mobile app designed for tracking menstrual cycles and storing reproductive health information for women. All data is processed locally on the app and can be protected by biometrics and App PIN. Nobody has access to your health data, not even us. Privacy is a fundamental human right, not a suggestion. 
+SecureCycle is a privacy and security focused general health app designed to help you store sensitive health information, including medical conditions, diagnoses, medications, allergies, doctor’s appointments, mental help information, treatment notes,and reproductive health information.
+
+All data is processed locally on your device and can be protected with an app PIN. No one, not even us, can access your health data. Privacy is a fundamental human right, not an option.
 
 ## Technologies:
 - Frontend: [React Native + Expo](https://react.dev/#:~:text=React%20Native%20and%20Expo%20let%20you%20build%20apps%20in%20React%20for%20Android%2C%20iOS%2C%20and%20more.)
