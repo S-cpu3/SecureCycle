@@ -1,6 +1,6 @@
 <img width="915" height="933" alt="image" src="https://github.com/user-attachments/assets/84ce07e8-3dce-450a-8109-ab1689dbb520" />
 
-SecureCycle is a privacy and security focused general health app designed to help you store sensitive health information, including medical conditions, diagnoses, medications, allergies, doctor’s appointments, mental help information, treatment notes,and reproductive health information.
+SecureCycle is a privacy and security focused general health app designed to help you store sensitive health information including medical conditions, diagnoses, medications, allergies, doctor’s appointments, mental help information, treatment notes, and reproductive health information.
 
 All data is processed locally on your device and can be protected with an app PIN. No one, not even us, can access your health data. Privacy is a fundamental human right, not an option.
 
