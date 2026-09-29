@@ -7,7 +7,6 @@ function toHex(value: number) {
 }
 
 export function sha256(input: string) {
-  const maxWord = 2 ** 32;
   const words: number[] = [];
   const message = unescape(encodeURIComponent(input));
   const bitLength = message.length * 8;
@@ -42,7 +41,13 @@ export function sha256(input: string) {
   const terminatorIndex = message.length >> 2;
   const terminatorShift = 24 - ((message.length % 4) * 8);
   words[terminatorIndex] = (words[terminatorIndex] || 0) | (0x80 << terminatorShift);
-  words[((message.length + 8) >> 6 << 4) + 15] = bitLength;
+
+  // hopefully this works 
+  const totalWords = (((message.length + 8) >> 6) + 1) << 4;
+  for (let index = 0; index < totalWords; index += 1) {
+    words[index] = words[index] | 0;
+  }
+  words[totalWords - 1] = bitLength;
 
   for (let offset = 0; offset < words.length; offset += 16) {
     const schedule = words.slice(offset, offset + 16);
@@ -56,7 +61,8 @@ export function sha256(input: string) {
         rightRotate(schedule[index - 2], 17) ^
         rightRotate(schedule[index - 2], 19) ^
         (schedule[index - 2] >>> 10);
-      schedule[index] = (schedule[index - 16] + s0 + schedule[index - 7] + s1) % maxWord;
+   
+      schedule[index] = (schedule[index - 16] + s0 + schedule[index - 7] + s1) >>> 0;
     }
 
     let [a, b, c, d, e, f, g, h] = hash;
@@ -64,29 +70,29 @@ export function sha256(input: string) {
     for (let index = 0; index < 64; index += 1) {
       const s1 = rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25);
       const choice = (e & f) ^ (~e & g);
-      const temp1 = (h + s1 + choice + roundConstants[index] + schedule[index]) % maxWord;
+      const temp1 = (h + s1 + choice + roundConstants[index] + schedule[index]) >>> 0;
       const s0 = rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22);
       const majority = (a & b) ^ (a & c) ^ (b & c);
-      const temp2 = (s0 + majority) % maxWord;
+      const temp2 = (s0 + majority) >>> 0;
 
       h = g;
       g = f;
       f = e;
-      e = (d + temp1) % maxWord;
+      e = (d + temp1) >>> 0;
       d = c;
       c = b;
       b = a;
-      a = (temp1 + temp2) % maxWord;
+      a = (temp1 + temp2) >>> 0;
     }
 
-    hash[0] = (hash[0] + a) % maxWord;
-    hash[1] = (hash[1] + b) % maxWord;
-    hash[2] = (hash[2] + c) % maxWord;
-    hash[3] = (hash[3] + d) % maxWord;
-    hash[4] = (hash[4] + e) % maxWord;
-    hash[5] = (hash[5] + f) % maxWord;
-    hash[6] = (hash[6] + g) % maxWord;
-    hash[7] = (hash[7] + h) % maxWord;
+    hash[0] = (hash[0] + a) >>> 0;
+    hash[1] = (hash[1] + b) >>> 0;
+    hash[2] = (hash[2] + c) >>> 0;
+    hash[3] = (hash[3] + d) >>> 0;
+    hash[4] = (hash[4] + e) >>> 0;
+    hash[5] = (hash[5] + f) >>> 0;
+    hash[6] = (hash[6] + g) >>> 0;
+    hash[7] = (hash[7] + h) >>> 0;
   }
 
   return hash.map(toHex).join("");
@@ -98,4 +104,8 @@ export function createPinSalt() {
 
 export function hashPin(pin: string, salt: string) {
   return sha256(`${salt}:${pin}`);
+}
+
+export function isLegacyBrokenHash(hash: string | null | undefined) {
+  return !!hash && hash.includes("NaN");
 }
