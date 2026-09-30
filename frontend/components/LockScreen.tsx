@@ -14,12 +14,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDatabase } from "@/hooks/use-database";
-import { ensurePrimaryUser, updateUserPin, verifyUserPin } from "@/dao/userDao";
+import { ensurePrimaryUser, hasUsablePin, updateUserPin, verifyUserPin } from "@/dao/userDao";
 import {
   clearFailedPinAttempts,
   getSecuritySettings,
   registerFailedPinAttempt,
 } from "@/dao/securityDao";
+import { useAuth } from "@/contexts/AuthContext"; // FIX 1: shared unlock state
 
 const PIN_LENGTH = 6;
 
@@ -28,6 +29,7 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 export default function LockScreen() {
   const db = useDatabase();
   const router = useRouter();
+  const { unlock } = useAuth(); // FIX 2: lets this screen flip the shared unlock flag
   const [pin, setPin] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [isPinSet, setIsPinSet] = useState(false);
@@ -62,9 +64,12 @@ export default function LockScreen() {
 
   const isLocked = lockSecondsRemaining > 0;
 
+  // FIX 3: unlock() must run before navigating, otherwise the route guard in
+  // app/_layout.tsx sees isUnlocked === false and sends you straight back here.
   const navigateToTabs = useCallback(() => {
+    unlock();
     router.replace("/(tabs)");
-  }, [router]);
+  }, [router, unlock]);
 
   const handleUnlock = useCallback(() => {
     if (isUnlocking) {
@@ -105,14 +110,19 @@ export default function LockScreen() {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync() : false;
 
+      // FIX 4: a pin_hash saved by the old, broken sha256() ("00000NaN...")
+      // can't be verified against any real PIN. Treat it the same as "no PIN
+      // set yet" so the user can set a fresh one instead of being locked out.
+      const pinIsUsable = hasUsablePin(user);
+
       setUserId(user.user_id);
-      setIsPinSet(Boolean(user.pin_hash));
+      setIsPinSet(pinIsUsable);
       setLockedUntil(security.lockout_until ? new Date(security.lockout_until).getTime() : 0);
       setCanUseBiometrics(hasHardware && isEnrolled);
       setIsBiometricEnabled(security.biometric_enabled === 1);
       setIsLoaded(true);
 
-      if (!user.pin_hash) {
+      if (!pinIsUsable) {
         handleUnlock();
       }
     }
