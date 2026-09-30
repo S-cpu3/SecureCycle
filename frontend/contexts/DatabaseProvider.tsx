@@ -3,6 +3,7 @@ import { createAllTables } from "./schema";
 import * as SQLite from "expo-sqlite";
 import { ensurePrimaryUser } from "@/dao/userDao";
 import { ensureSecuritySettings } from "@/dao/securityDao";
+import { openEncryptedDatabase } from "@/utils/dbEncryption";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -32,7 +33,7 @@ export function DatabaseProvider({ children }: LayoutProps) {
       
       // Try-Catch to open the database and create tables if they don't exist
       try {
-        const database = await SQLite.openDatabaseAsync('safecycle.db');
+        const database = await openEncryptedDatabase('safecycle.db');
         await database.execAsync(createAllTables);
         await ensureColumn(database, "Users", "pin_salt", "TEXT");
         await ensureColumn(database, "Users", "birth_date", "TEXT");
