@@ -6,7 +6,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import Constants from "expo-constants";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import QRCode from "react-native-qrcode-svg";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router";
 import { theme } from "@/theme/theme";
 import { useDatabase } from "@/hooks/use-database";
 import { getExportData, getHomeCycleData } from "@/dao/cycleDao";
