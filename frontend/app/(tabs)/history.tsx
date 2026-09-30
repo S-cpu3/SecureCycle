@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, Text } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Entypo from "@expo/vector-icons/Entypo";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router";
 import { theme } from "@/theme/theme";
 import { useDatabase } from "@/hooks/use-database";
 import {
