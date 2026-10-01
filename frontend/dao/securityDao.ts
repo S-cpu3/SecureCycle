@@ -59,7 +59,7 @@ export async function setBiometricEnabled(
 export async function registerFailedPinAttempt(db: SQLite.SQLiteDatabase, userId: number) {
   const current = await ensureSecuritySettings(db, userId);
   const nextAttempts = current.failed_attempts + 1;
-  const backoffMs = Math.min(300000, 1000 * 2 ** (nextAttempts - 1));
+  const backoffMs = nextAttempts <= 9 ? 1000 * 2 ** (nextAttempts - 1) : Math.min(86400000, 900000 * 2 ** (nextAttempts - 10));
   const lockoutUntil = new Date(Date.now() + backoffMs).toISOString();
 
   await db.runAsync(
