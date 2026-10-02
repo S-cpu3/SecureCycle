@@ -17,11 +17,14 @@ All data is processed locally on your device and can be protected with an app PI
 4) Install necessary packages:
     ```bash
     npm install
+    npm install expo@^57.0.0
+    npx expo install --fix && npx expo-doctor
     ```
 5) Start application: 
     ```bash
     npx expo start
     ```
+6) Download the Expo Go app and scan the QR code on your screen!
 
 ### Backend
 1) Ensure you have set up your vitrual python environment `python -m venv .venv`
