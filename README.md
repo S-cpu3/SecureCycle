@@ -24,7 +24,7 @@ All data is processed locally on your device and can be protected with an app PI
     ```bash
     npx expo start
     ```
-6) Download the Expo Go app and scan the QR code on your screen!
+6) Download the Expo Go app on your phone and scan the QR code on your screen! You will now be able to use SecureCycle!
 
 ### Backend
 1) Ensure you have set up your vitrual python environment `python -m venv .venv`
