@@ -287,7 +287,7 @@ export default function LockScreen() {
           {isPinSet ? "Enter your 6-digit PIN" : "Set a PIN later from Profile"}
         </Text>
         {isLocked ? (
-          <Text style={styles.lockMessage}>Too many attempts. Try again in {lockSecondsRemaining}s.</Text>
+          <Text style={styles.lockMessage}>Incorrect PIN. Try again in {lockSecondsRemaining}s.</Text>
         ) : (
           <Text style={styles.lockMessageMuted}>
             {isBiometricEnabled && canUseBiometrics
