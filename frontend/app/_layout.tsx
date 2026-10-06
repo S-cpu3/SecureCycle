@@ -1,36 +1,37 @@
 import React, { useEffect } from 'react';
 import { DatabaseProvider } from "@/contexts/DatabaseProvider";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Href, Stack, useRouter, useSegments } from "expo-router";
 import { PaperProvider } from 'react-native-paper';
 import { theme } from "@/theme/theme"
+import { gateRedirect } from "@/utils/routeGate";
 
-// FIX: the lock screen used to be the only thing protecting the app, and it
-// only appeared because index.tsx happened to be the first route rendered.
-// A deep link (safecycle:///profile, safecycle:///db-debug) or restored
-// navigation state could open any screen directly with no PIN prompt.
-// AuthGate redirects every route except the lock screen back to "/" until
-// the user has unlocked.
+// Decides which routes are reachable:
+//  - duress session: only the decoy screen
+//  - locked:         only the lock screen
+//  - unlocked:       everything except the decoy screen
+// This is what enforces the lock, so deep links (safecycle:///profile) and
+// restored navigation state can't skip the PIN.
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isUnlocked } = useAuth();
+  const { isUnlocked, isDuress } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    const currentRoute = segments[0];
-    const onLockScreen = currentRoute === undefined || currentRoute === "index";
+    const target = gateRedirect(segments[0], isUnlocked, isDuress);
 
-    if (!isUnlocked && !onLockScreen) {
-      router.replace("/");
+    if (target) {
+      // typedRoutes is on, so the plain string from gateRedirect needs a cast.
+      router.replace(target as Href);
     }
-  }, [isUnlocked, segments, router]);
+  }, [isUnlocked, isDuress, segments, router]);
 
   return <>{children}</>;
 }
 
 // Root layout: wraps the entire app in the theme provider, the SQLite database
-// provider, and the auth gate. Stack screens are headerless; the PIN/biometric
-// prompt itself still lives in app/index.tsx via LockScreen.
+// provider, and the auth gate. The PIN/biometric prompt itself lives in
+// app/index.tsx via LockScreen.
 export default function RootLayout() {
   return(
     <PaperProvider theme={theme}>
@@ -40,6 +41,7 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="decoy" options={{ gestureEnabled: false }} />
             </Stack>
           </AuthGate>
         </AuthProvider>
