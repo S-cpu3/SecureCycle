@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Safe Cycle",
+    "name": "SecureCycle",
     "slug": "safe-cycle",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -38,7 +38,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow SafeCycle to use Face ID."
+          "faceIDPermission": "Allow SecureCycle to use Face ID."
         }
       ],
       "expo-router",
