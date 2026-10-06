@@ -81,7 +81,7 @@ function toIsoBirthDate(value: Date) {
 
 // PDF HTML template: used by the doctor-export feature to produce a printable cycle summary.
 function buildPdfHtml(payload: SharePayload) {
-  const patientName = `${payload.patient.firstName} ${payload.patient.lastName}`.trim() || "SafeCycle Demo User";
+  const patientName = `${payload.patient.firstName} ${payload.patient.lastName}`.trim() || "SecureCycle Demo User";
   const rows = payload.recentEntries
     .map(
       (entry) =>
@@ -92,7 +92,7 @@ function buildPdfHtml(payload: SharePayload) {
   return `
     <html>
       <body style="font-family: Helvetica, Arial, sans-serif; padding: 28px; color: #260C1A;">
-        <h1 style="margin-bottom: 4px;">SafeCycle Private Export</h1>
+        <h1 style="margin-bottom: 4px;">SecureCycle Private Export</h1>
         <p style="margin-top: 0; color: #AD263A;">Generated ${payload.exportedAt}</p>
         <h2>Patient</h2>
         <p><strong>Name:</strong> ${patientName}</p>
@@ -274,7 +274,7 @@ export default function Profile() {
       }
 
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Enable biometric unlock for SafeCycle",
+        promptMessage: "Enable biometric unlock for SecureCycle",
         disableDeviceFallback: true,
       });
 
@@ -367,7 +367,7 @@ export default function Profile() {
       if (canShare) {
         await Sharing.shareAsync(file.uri, {
           mimeType: "application/pdf",
-          dialogTitle: "Share SafeCycle PDF",
+          dialogTitle: "Share SecureCycle PDF",
         });
       } else {
         Alert.alert("PDF Ready", `PDF saved to ${file.uri}`);
