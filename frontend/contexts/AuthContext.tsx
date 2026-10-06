@@ -3,22 +3,32 @@ import { AppState, AppStateStatus } from "react-native";
 
 type AuthContextValue = {
   isUnlocked: boolean;
+  // True while the decoy screen is showing after a duress PIN. The real app is NOT unlocked in this state, so none of its screens are reachable.
+  isDuress: boolean;
   unlock: () => void;
   lock: () => void;
+  enterDuress: () => void;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isDuress, setIsDuress] = useState(false);
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
-      // Relock as soon as the app leaves the foreground
-      if (appState.current === "active" && (nextState === "background" || nextState === "inactive")) {
+      if (appState.current === "active" && nextState === "background") {
         setIsUnlocked(false);
+        setIsDuress(false);
       }
+
       appState.current = nextState;
     });
 
@@ -27,8 +37,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextValue = {
     isUnlocked,
+    isDuress,
     unlock: () => setIsUnlocked(true),
-    lock: () => setIsUnlocked(false),
+    lock: () => {
+      setIsUnlocked(false);
+      setIsDuress(false);
+    },
+    enterDuress: () => {
+      setIsUnlocked(false);
+      setIsDuress(true);
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
