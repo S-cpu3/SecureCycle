@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Alert } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, StyleSheet, Alert, AppState } from "react-native";
 import { Image } from "expo-image";
 import { Button } from "react-native-paper";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -20,7 +20,16 @@ import {
   getSecuritySettings,
   registerFailedPinAttempt,
 } from "@/dao/securityDao";
+import { runAutoEraseIfDue, touchLastUnlock } from "@/dao/autoEraseDao";
 import { useAuth } from "@/contexts/AuthContext"; // FIX 1: shared unlock state
+import {
+  attemptsUntilWipe,
+  checkDuressPin,
+  getDuressConfig,
+  getWipeThreshold,
+  hasUserData,
+  wipeUserData,
+} from "@/dao/duressDao";
 
 const PIN_LENGTH = 6;
 
@@ -29,7 +38,11 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 export default function LockScreen() {
   const db = useDatabase();
   const router = useRouter();
-  const { unlock } = useAuth(); // FIX 2: lets this screen flip the shared unlock flag
+  const { unlock, enterDuress } = useAuth();
+  // Set when the duress PIN was typed, so the unlock animation ends on the decoy
+  // screen instead of the real app. A ref (not state) so the animation callback
+  // always sees the current value.
+  const duressRef = useRef(false);
   const [pin, setPin] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [isPinSet, setIsPinSet] = useState(false);
@@ -64,12 +77,19 @@ export default function LockScreen() {
 
   const isLocked = lockSecondsRemaining > 0;
 
-  // FIX 3: unlock() must run before navigating, otherwise the route guard in
+  // unlock() must run before navigating, otherwise the route guard in
   // app/_layout.tsx sees isUnlocked === false and sends you straight back here.
+  // For a duress PIN the real app is never unlocked: we enter the decoy instead.
   const navigateToTabs = useCallback(() => {
+    if (duressRef.current) {
+      enterDuress();
+      router.replace("/decoy");
+      return;
+    }
+
     unlock();
     router.replace("/(tabs)");
-  }, [router, unlock]);
+  }, [router, unlock, enterDuress]);
 
   const handleUnlock = useCallback(() => {
     if (isUnlocking) {
@@ -106,6 +126,13 @@ export default function LockScreen() {
   useEffect(() => {
     async function loadState() {
       const user = await ensurePrimaryUser(db);
+      // Inactivity auto-erase runs here, before the PIN screen accepts anything.
+      // A failure in this optional feature must never stop the lock screen loading.
+      try {
+        await runAutoEraseIfDue(db, user.user_id);
+      } catch (error) {
+        console.error("Auto-erase check failed", error);
+      }
       const security = await getSecuritySettings(db, user.user_id);
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync() : false;
@@ -114,12 +141,15 @@ export default function LockScreen() {
       // can't be verified against any real PIN. Treat it the same as "no PIN
       // set yet" so the user can set a fresh one instead of being locked out.
       const pinIsUsable = hasUsablePin(user);
+      const duressConfig = await getDuressConfig(db, user.user_id);
 
       setUserId(user.user_id);
       setIsPinSet(pinIsUsable);
       setLockedUntil(security.lockout_until ? new Date(security.lockout_until).getTime() : 0);
       setCanUseBiometrics(hasHardware && isEnrolled);
-      setIsBiometricEnabled(security.biometric_enabled === 1);
+      // A coerced person can be made to use their face or finger, which would
+      // open the real data. While a duress PIN exists, biometric unlock is off.
+      setIsBiometricEnabled(security.biometric_enabled === 1 && !duressConfig.isSet);
       setIsLoaded(true);
 
       if (!pinIsUsable) {
@@ -132,6 +162,29 @@ export default function LockScreen() {
       setIsLoaded(true);
     });
   }, [db, handleUnlock]);
+
+  // Restarts the inactivity auto-erase countdown. Must never block an unlock.
+  const markUnlocked = async (uid: number) => {
+    try {
+      await touchLastUnlock(db, uid);
+    } catch (error) {
+      console.error("Failed to record unlock time", error);
+    }
+  };
+
+  // The lock screen can stay mounted for days in the background, so run the
+  // check again whenever the app comes back to the foreground.
+  useEffect(() => {
+    if (!userId) return;
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        runAutoEraseIfDue(db, userId).catch((error) => console.error("Auto-erase check failed", error));
+      }
+    });
+
+    return () => subscription.remove();
+  }, [db, userId]);
 
   const handlePinChange = (value: string) => {
     if (isLocked || value.length > PIN_LENGTH) {
@@ -156,20 +209,69 @@ export default function LockScreen() {
       return;
     }
 
+    // Both checks always run so the work done does not reveal which PIN was typed.
     const isValid = await verifyUserPin(db, pin);
+    const duressAction = await checkDuressPin(db, userId, pin);
 
     if (isValid) {
       await clearFailedPinAttempts(db, userId);
+      await markUnlocked(userId);
       setPin("");
       setLockedUntil(0);
       handleUnlock();
       return;
     }
 
+    if (duressAction) {
+      // Must look exactly like a normal unlock: failed attempts are cleared, no
+      // alert, same animation. If anything below throws, fall through and treat
+      // it as a wrong PIN rather than showing an error that gives it away.
+      try {
+        await clearFailedPinAttempts(db, userId);
+
+        if (duressAction === "wipe") {
+          try {
+            await wipeUserData(db);
+          } catch (error) {
+            // The decoy still shows and the real app stays locked either way.
+            console.error("Duress wipe failed", error);
+          }
+        }
+
+        duressRef.current = true;
+        setPin("");
+        setLockedUntil(0);
+        handleUnlock();
+        return;
+      } catch (error) {
+        console.error("Duress session failed", error);
+      }
+    }
+
     const result = await registerFailedPinAttempt(db, userId);
     setPin("");
     setLockedUntil(new Date(result.lockoutUntil).getTime());
-    Alert.alert("Incorrect PIN", `Try again in ${Math.ceil(result.backoffMs / 1000)} seconds.`);
+
+    // Optional "erase after N wrong PINs". Counts attempts, not time, so changing
+    // the phone's clock doesn't help. The erase is silent: the screen looks the
+    // same as any other wrong PIN. Only the last 3 attempts show a warning, to
+    // protect an owner who is simply mistyping.
+    let warning = "";
+    try {
+      const remaining = attemptsUntilWipe(result.failedAttempts, await getWipeThreshold(db, userId));
+
+      if (remaining === 0) {
+        if (await hasUserData(db)) {
+          await wipeUserData(db);
+        }
+      } else if (remaining !== null && remaining <= 3) {
+        warning = ` ${remaining} more wrong ${remaining === 1 ? "attempt" : "attempts"} will erase your data.`;
+      }
+    } catch (error) {
+      console.error("Failed-attempt erase check failed", error);
+    }
+
+    Alert.alert("Incorrect PIN", `Try again in ${Math.ceil(result.backoffMs / 1000)} seconds.${warning}`);
   };
 
   const handleBiometricAuth = async () => {
@@ -189,6 +291,7 @@ export default function LockScreen() {
     }
 
     await clearFailedPinAttempts(db, userId);
+    await markUnlocked(userId);
     setLockedUntil(0);
     handleUnlock();
   };
