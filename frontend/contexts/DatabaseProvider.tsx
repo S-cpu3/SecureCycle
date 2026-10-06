@@ -3,6 +3,7 @@ import { createAllTables } from "./schema";
 import * as SQLite from "expo-sqlite";
 import { ensurePrimaryUser } from "@/dao/userDao";
 import { ensureSecuritySettings } from "@/dao/securityDao";
+import { ensureDuressColumns } from "@/dao/duressDao";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,16 +27,17 @@ async function ensureColumn(
 export function DatabaseProvider({ children }: LayoutProps) {
   const [ready, setReady] = useState<boolean>(false);
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
-  
+
   useEffect(() => {
     async function init() {
-      
+
       // Try-Catch to open the database and create tables if they don't exist
       try {
         const database = await SQLite.openDatabaseAsync('safecycle.db');
         await database.execAsync(createAllTables);
         await ensureColumn(database, "Users", "pin_salt", "TEXT");
         await ensureColumn(database, "Users", "birth_date", "TEXT");
+        await ensureDuressColumns(database);
         const user = await ensurePrimaryUser(database);
         await ensureSecuritySettings(database, user.user_id);
         setDb(database);
