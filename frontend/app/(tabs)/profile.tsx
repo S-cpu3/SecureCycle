@@ -13,6 +13,12 @@ import { getExportData, getHomeCycleData } from "@/dao/cycleDao";
 import { ensurePrimaryUser, updateUserPin, updateUserProfile, UserProfile } from "@/dao/userDao";
 import { getSecuritySettings, saveShareToken, setBiometricEnabled } from "@/dao/securityDao";
 
+// FIX 11a: New imports for duress PIN and auto-wipe/erase components
+import DuressPinCard from "@/components/DuressPinCard";
+import AutoWipeCard from "@/components/AutoWipeCard";
+import AutoEraseCard from "@/components/AutoEraseCard";
+import { checkDuressPin, getDuressConfig } from "@/dao/duressDao";
+
 // Local types for the security settings snapshot and the QR/PDF share payload.
 type SecurityState = {
   biometric_enabled: number;
@@ -246,6 +252,12 @@ export default function Profile() {
       return;
     }
 
+    // FIX 11c: Prevent setting the real PIN equal to the duress PIN
+    if (await checkDuressPin(db, profile.user_id, newPin)) {
+      Alert.alert("Choose a different PIN", "That PIN can't be used.");
+      return;
+    }
+
     await updateUserPin(db, profile.user_id, newPin);
     setNewPin("");
     setConfirmPin("");
@@ -255,6 +267,12 @@ export default function Profile() {
   // Biometric handlers: prompt Face ID/fingerprint to enable, or disable without re-authentication.
   const handleEnableBiometrics = async () => {
     if (!profile) {
+      return;
+    }
+
+    // FIX 11d: Block biometrics while duress PIN is configured
+    if ((await getDuressConfig(db, profile.user_id)).isSet) {
+      Alert.alert("Unavailable", "Biometric unlock isn't available right now.");
       return;
     }
 
@@ -495,6 +513,11 @@ export default function Profile() {
             </Text>
           </Card.Content>
         </Card>
+
+        {/* FIX 11b: Show the new security configuration cards */}
+        <DuressPinCard style={styles.sectionCard} />
+        <AutoEraseCard style={styles.sectionCard} />
+        <AutoWipeCard style={styles.sectionCard} />
 
         {/* Doctor export card: PDF and QR share actions */}
         <Card style={styles.sectionCard}>
