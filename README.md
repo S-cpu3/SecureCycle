@@ -12,7 +12,8 @@ All data is processed locally on your device and can be protected with an app PI
 ## How to run application:
 
 ### Frontend:
-1) Open terminal/command prompt on your computer and run the command `git clone https://github.com/s-cpu3/Securecycle`
+1) Open terminal/command prompt on your computer and run the command
+   `git clone https://github.com/s-cpu3/Securecycle`
 3) Make sure you're under the correct directory `frontend` Run `cd Securecycle/frontend`
 4) Install necessary packages:
     ```bash
