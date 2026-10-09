@@ -43,6 +43,7 @@ All data is processed locally on your device and can be protected with an app PI
 ### Frontend Pages:
 - Home Page
 - History (Overview user data)
+- Daily wellness check-ins for mood, energy, sleep, water, and optional notes
 - Profile (User, Pass, Scannable QR)
 
 ## Note(s):
