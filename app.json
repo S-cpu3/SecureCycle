@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "SecureCycle",
+    "slug": "safe-cycle",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/SafeCycleLogo.png",
+    "scheme": "safecycle",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sasanda.biometricauth",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "This app uses Face ID to securely log you into your account."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/SafeCycleLogo.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
+      "package": "com.sasanda.biometricauth"
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/SafeCycleLogo.png"
+    },
+    "plugins": [
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow SecureCycle to use Face ID."
+        }
+      ],
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/SafeCycleLogo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-image",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
