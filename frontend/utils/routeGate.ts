@@ -3,15 +3,17 @@ export function gateRedirect(
   isUnlocked: boolean,
   isDuress: boolean
 ): string | null {
-  const onLockScreen = route === undefined || route === "index";
+  const onLockScreen = route === "lock";
 
   if (isDuress) {
     return route === "decoy" ? null : "/decoy";
   }
 
   if (!isUnlocked) {
-    return onLockScreen ? null : "/";
+    return onLockScreen ? null : "/lock";
   }
 
-  return route === "decoy" ? "/(tabs)" : null;
+  return route === "decoy" || onLockScreen || route === "index" || route === undefined
+    ? "/(tabs)"
+    : null;
 }
