@@ -98,16 +98,18 @@ export async function checkDuressPin(
 }
 
 /**
- * Irreversibly removes the user's cycle data and profile details. The real PIN,
+   * Irreversibly removes the user's cycle/wellness data and profile details. The real PIN,
  * duress PIN and settings are kept so the app still looks locked and normal.
  * secure_delete + VACUUM overwrite the freed pages instead of leaving the old
  * rows sitting in the file.
  */
 export async function wipeUserData(db: SQLite.SQLiteDatabase) {
   await db.execAsync("PRAGMA secure_delete = ON;");
-  await db.execAsync("DELETE FROM Entries; DELETE FROM Cycles;");
-  await db.execAsync(`UPDATE Users SET first_name = '', last_name = '', birth_date = '';`);
-  await db.execAsync(`UPDATE SecuritySettings SET qr_share_token = NULL, qr_last_generated_at = NULL;`);
+  await db.withTransactionAsync(async () => {
+    await db.execAsync("DELETE FROM Entries; DELETE FROM Cycles; DELETE FROM WellnessCheckIns;");
+    await db.execAsync(`UPDATE Users SET first_name = '', last_name = '', birth_date = '';`);
+    await db.execAsync(`UPDATE SecuritySettings SET qr_share_token = NULL, qr_last_generated_at = NULL;`);
+  });
 
   try {
     await db.execAsync("VACUUM;");
@@ -146,12 +148,13 @@ export function attemptsUntilWipe(failedAttempts: number, threshold: number | nu
 
 /** True if there is anything left to erase, so repeated wrong PINs don't re-run the wipe. */
 export async function hasUserData(db: SQLite.SQLiteDatabase): Promise<boolean> {
-  const counts = await db.getFirstAsync<{ entries: number; cycles: number; profile: number }>(
+  const counts = await db.getFirstAsync<{ entries: number; cycles: number; wellness: number; profile: number }>(
     `SELECT
        (SELECT COUNT(*) FROM Entries) AS entries,
        (SELECT COUNT(*) FROM Cycles) AS cycles,
+        (SELECT COUNT(*) FROM WellnessCheckIns) AS wellness,
        (SELECT COUNT(*) FROM Users
           WHERE COALESCE(first_name, '') <> '' OR COALESCE(last_name, '') <> '' OR COALESCE(birth_date, '') <> '') AS profile`
   );
-  return Boolean(counts && (counts.entries > 0 || counts.cycles > 0 || counts.profile > 0));
+  return Boolean(counts && (counts.entries > 0 || counts.cycles > 0 || counts.wellness > 0 || counts.profile > 0));
 }
