@@ -40,6 +40,7 @@ export default function RootLayout() {
           <AuthGate>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
+              <Stack.Screen name="lock" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="decoy" options={{ gestureEnabled: false }} />
             </Stack>
