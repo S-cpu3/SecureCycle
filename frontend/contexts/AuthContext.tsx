@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, AppStateStatus } from "react-native";
 
 type AuthContextValue = {
@@ -35,19 +35,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => subscription.remove();
   }, []);
 
-  const value: AuthContextValue = {
+  const unlock = useCallback(() => setIsUnlocked(true), []);
+  const lock = useCallback(() => {
+    setIsUnlocked(false);
+    setIsDuress(false);
+  }, []);
+  const enterDuress = useCallback(() => {
+    setIsUnlocked(false);
+    setIsDuress(true);
+  }, []);
+
+  const value = useMemo<AuthContextValue>(() => ({
     isUnlocked,
     isDuress,
-    unlock: () => setIsUnlocked(true),
-    lock: () => {
-      setIsUnlocked(false);
-      setIsDuress(false);
-    },
-    enterDuress: () => {
-      setIsUnlocked(false);
-      setIsDuress(true);
-    },
-  };
+    unlock,
+    lock,
+    enterDuress,
+  }), [isUnlocked, isDuress, unlock, lock, enterDuress]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
