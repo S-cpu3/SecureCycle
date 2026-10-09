@@ -4,10 +4,17 @@ import { ActivityIndicator, Button, Text } from "react-native-paper";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, useFocusEffect } from "expo-router";
 import CycleTracker, { CycleDay } from "@/components/CycleTracker";
+import HealthOverview, { HealthMetric } from "@/components/healthOverview";
 import { theme } from "@/theme/theme";
 import { useDatabase } from "@/hooks/use-database";
 import { getHomeCycleData, HomeCycleData, HomeCycleState } from "@/dao/cycleDao";
 import { ensurePrimaryUser } from "@/dao/userDao";
+import {
+  getWellnessCheckIn,
+  localDateKey,
+  WELLNESS_MOOD_LABELS,
+  WellnessCheckIn,
+} from "@/dao/wellnessDao";
 
 export const metadata = {
   title: "Home",
@@ -34,9 +41,76 @@ function buildDays(data: HomeCycleData): CycleDay[] {
   });
 }
 
+function buildWellnessMetrics(checkIn: WellnessCheckIn | null): HealthMetric[] {
+  if (!checkIn) {
+    return [];
+  }
+
+  const metrics: HealthMetric[] = [
+    {
+      id: "mood",
+      label: "Mood",
+      value: WELLNESS_MOOD_LABELS[checkIn.mood],
+      icon: "emoticon-outline",
+    },
+    {
+      id: "other",
+      label: "Energy",
+      value: `${checkIn.energy} / 5`,
+      icon: "lightning-bolt-outline",
+    },
+  ];
+
+  if (checkIn.sleep_hours !== null) {
+    metrics.push({
+      id: "sleep",
+      label: "Sleep",
+      value: `${checkIn.sleep_hours} hrs`,
+      icon: "sleep",
+    });
+  }
+
+  if (checkIn.water_glasses !== null) {
+    metrics.push({
+      id: "hydration",
+      label: "Water",
+      value: `${checkIn.water_glasses} glasses`,
+      icon: "cup-water",
+    });
+  }
+
+  return metrics;
+}
+
+function WellnessSummary({ checkIn }: { checkIn: WellnessCheckIn | null }) {
+  const dateLabel = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  return (
+    <View style={styles.wellnessSummary}>
+      <HealthOverview
+        dateLabel={dateLabel}
+        metrics={buildWellnessMetrics(checkIn)}
+      />
+      <Button
+        mode="outlined"
+        textColor={theme.colors.text}
+        onPress={() => router.push("/(tabs)/wellness")}
+        style={styles.wellnessButton}
+      >
+        {checkIn ? "Update today’s check-in" : "Start today’s check-in"}
+      </Button>
+    </View>
+  );
+}
+
 export default function Index() {
   const db = useDatabase();
   const [data, setData] = useState<HomeCycleState>(null);
+  const [todayWellness, setTodayWellness] = useState<WellnessCheckIn | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Data loading: re-runs on every tab focus so the ring stays current.
@@ -47,7 +121,13 @@ export default function Index() {
       async function load() {
         const user = await ensurePrimaryUser(db);
         const cycleData = await getHomeCycleData(db, user.user_id);
+        const wellnessCheckIn = await getWellnessCheckIn(
+          db,
+          user.user_id,
+          localDateKey()
+        );
         setData(cycleData);
+        setTodayWellness(wellnessCheckIn);
         setIsLoading(false);
       }
 
@@ -69,13 +149,26 @@ export default function Index() {
 
   if (!data) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.title}>Your cycle</Text>
-        <Text style={styles.emptyText}>Log a period in History to start tracking.</Text>
-        <Button mode="contained" style={styles.emptyButton} onPress={() => router.push("/(tabs)/history")}>
-          Open History
-        </Button>
-      </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.emptyHeader}>
+          <Text style={styles.title}>Your cycle</Text>
+          <Text style={styles.emptyText}>
+            Log a period in History to start tracking.
+          </Text>
+          <Button
+            mode="contained"
+            style={styles.emptyButton}
+            onPress={() => router.push("/(tabs)/history")}
+          >
+            Open History
+          </Button>
+        </View>
+        <WellnessSummary checkIn={todayWellness} />
+      </ScrollView>
     );
   }
 
@@ -134,6 +227,8 @@ export default function Index() {
           </View>
         ))}
       </View>
+
+      <WellnessSummary checkIn={todayWellness} />
     </ScrollView>
   );
 }
@@ -154,12 +249,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: theme.colors.background,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: theme.spacing.large,
-    backgroundColor: theme.colors.background,
+  emptyHeader: {
+    marginBottom: theme.spacing.large,
   },
   emptyText: {
     color: "rgba(244, 243, 238, 0.78)",
@@ -172,6 +263,18 @@ const styles = StyleSheet.create({
   emptyButton: {
     backgroundColor: theme.colors.primary,
     borderRadius: theme.roundness * 3,
+  },
+  wellnessSummary: {
+    marginTop: theme.spacing.large,
+    padding: theme.spacing.medium,
+    borderRadius: theme.roundness * 3,
+    backgroundColor: "rgba(244, 243, 238, 0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(244, 243, 238, 0.12)",
+  },
+  wellnessButton: {
+    marginTop: theme.spacing.medium,
+    borderColor: "rgba(244, 243, 238, 0.4)",
   },
   header: {
     marginBottom: theme.spacing.large,
