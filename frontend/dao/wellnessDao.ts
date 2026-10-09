@@ -1,5 +1,7 @@
 import type { SQLiteDatabase } from "expo-sqlite";
+
 export type WellnessMood = "very_low" | "low" | "okay" | "good" | "great";
+
 export const WELLNESS_MOOD_LABELS: Record<WellnessMood, string> = {
   very_low: "Very low",
   low: "Low",
@@ -7,6 +9,7 @@ export const WELLNESS_MOOD_LABELS: Record<WellnessMood, string> = {
   good: "Good",
   great: "Great",
 };
+
 export type WellnessCheckIn = {
   checkin_id: number;
   user_id: number;
@@ -18,6 +21,7 @@ export type WellnessCheckIn = {
   symptoms: string | null;
   updated_at: string;
 };
+
 export type SaveWellnessCheckInInput = {
   date: string;
   mood: WellnessMood;
@@ -26,12 +30,14 @@ export type SaveWellnessCheckInInput = {
   waterGlasses: number | null;
   symptoms: string | null;
 };
+
 export function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
 export async function getWellnessCheckIn(
   db: SQLiteDatabase,
   userId: number,
@@ -44,6 +50,7 @@ export async function getWellnessCheckIn(
     [userId, date]
   );
 }
+
 export async function getRecentWellnessCheckIns(
   db: SQLiteDatabase,
   userId: number,
@@ -53,6 +60,7 @@ export async function getRecentWellnessCheckIns(
   const cutoff = new Date();
   cutoff.setHours(0, 0, 0, 0);
   cutoff.setDate(cutoff.getDate() - (safeDays - 1));
+
   return db.getAllAsync<WellnessCheckIn>(
     `SELECT checkin_id, user_id, date, mood, energy, sleep_hours, water_glasses, symptoms, updated_at
      FROM WellnessCheckIns
@@ -62,6 +70,7 @@ export async function getRecentWellnessCheckIns(
     [userId, localDateKey(cutoff), safeDays]
   );
 }
+
 export async function saveWellnessCheckIn(
   db: SQLiteDatabase,
   userId: number,
@@ -90,6 +99,7 @@ export async function saveWellnessCheckIn(
       new Date().toISOString(),
     ]
   );
+
   const savedCheckIn = await getWellnessCheckIn(db, userId, input.date);
   if (!savedCheckIn) {
     throw new Error("The wellness check-in could not be read after saving.");
