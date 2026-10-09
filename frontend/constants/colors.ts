@@ -41,4 +41,5 @@ const colors = {
   },
   radius: 18,
 };
+
 export default colors;
