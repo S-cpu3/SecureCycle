@@ -4,7 +4,6 @@ import { Image } from "expo-image";
 import { Button } from "react-native-paper";
 import * as LocalAuthentication from "expo-local-authentication";
 import { theme } from "@/theme/theme";
-import { useRouter } from "expo-router";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -37,7 +36,6 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function LockScreen() {
   const db = useDatabase();
-  const router = useRouter();
   const { unlock, enterDuress } = useAuth();
   // Set when the duress PIN was typed, so the unlock animation ends on the decoy
   // screen instead of the real app. A ref (not state) so the animation callback
@@ -77,19 +75,17 @@ export default function LockScreen() {
 
   const isLocked = lockSecondsRemaining > 0;
 
-  // unlock() must run before navigating, otherwise the route guard in
-  // app/_layout.tsx sees isUnlocked === false and sends you straight back here.
-  // For a duress PIN the real app is never unlocked: we enter the decoy instead.
+  // Let AuthGate navigate after the auth-state update has committed. Navigating
+  // here races the tab guard, which can still observe a locked session.
+  // For a duress PIN the real app is never unlocked.
   const navigateToTabs = useCallback(() => {
     if (duressRef.current) {
       enterDuress();
-      router.replace("/decoy");
       return;
     }
 
     unlock();
-    router.replace("/(tabs)");
-  }, [router, unlock, enterDuress]);
+  }, [unlock, enterDuress]);
 
   const handleUnlock = useCallback(() => {
     if (isUnlocking) {
@@ -420,7 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   gradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
   },
