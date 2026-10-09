@@ -1,141 +1,52 @@
-# Welcome to your Expo app 👋
+<img width="915" height="933" alt="image" src="https://github.com/user-attachments/assets/84ce07e8-3dce-450a-8109-ab1689dbb520" />
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+SecureCycle is a privacy and security focused general health app designed to help you store sensitive health information including medical conditions, diagnoses, medications, allergies, doctor’s appointments, mental help information, treatment notes, and reproductive health information.
 
-## Get started
+All data is processed locally on your device and can be protected with an app PIN. No one, not even us, can access your health data. Privacy is a fundamental human right, not an option.
 
-1. Install dependencies
+## Technologies:
+- Frontend: [React Native + Expo](https://react.dev/#:~:text=React%20Native%20and%20Expo%20let%20you%20build%20apps%20in%20React%20for%20Android%2C%20iOS%2C%20and%20more.)
 
-   ```bash
-   npm install
-   ```
+    - Install Environment: [Expo setup guide](https://docs.expo.dev/get-started/set-up-your-environment/?platform=ios&device=physical&mode=expo-go)
 
-2. Start the app
+## How to run application:
 
-   ```bash
-   npx expo start
-   ```
+### Frontend:
+1) Open terminal/command prompt on your computer and run the command
+   `git clone https://github.com/s-cpu3/Securecycle`
+3) Make sure you're under the correct directory `frontend` Run `cd Securecycle/frontend`
+4) Install necessary packages:
+    ```bash
+    npm install
+    npm install expo@^57.0.0
+    npx expo install --fix && npx expo-doctor
+    ```
+5) Start application: 
+    ```bash
+    npx expo start
+    ```
+6) Download the Expo Go app on your phone and scan the QR code on your screen! You will now be able to use SecureCycle!
 
-In the output, you'll find options to open the app in a
+### Backend
+1) Ensure you have set up your vitrual python environment `python -m venv .venv`
+2) Activate your virtual environment `.venv/bin/activate` or `source .venv/bin/activate` for bash users
+3) Update and/or install the required packages via `pip install -r requirements.txt`
+4) To test and develop the backend application:
+    ```bash
+    fastapi dev main.py
+    ```
+    If you need access beyond your local network enter:
+    ```bash
+    uvicorn main:app --host 0.0.0.0
+    ```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Frontend Pages:
+- Home Page
+- History (Overview user data)
+- Daily wellness check-ins for mood, energy, sleep, water, and optional notes
+- Profile (User, Pass, Scannable QR)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-
----
-
-## Application Layout
-
-```
-SafeCycle Frontend
-│
-├─ App Shell
-│  ├─ `frontend/app/_layout.tsx`
-│  ├─ `react-native-paper` theme provider
-│  └─ `DatabaseProvider`
-│
-├─ Bootstrap / Persistence Setup
-│  └─ `frontend/contexts/DatabaseProvider.tsx`
-│     ├─ opens `safecycle.db`
-│     ├─ runs migrations / creates tables
-│     ├─ ensures primary local user exists
-│     └─ ensures security settings exist
-│
-├─ Entry Flow
-│  └─ `frontend/app/index.tsx`
-│     ├─ splash/logo animation
-│     └─ `LockScreen`
-│
-├─ Security Layer
-│  └─ `frontend/components/LockScreen.tsx`
-│     ├─ PIN entry / setup
-│     ├─ biometric auth
-│     ├─ failed-attempt lockout
-│     └─ on success -> `router.replace("/(tabs)")`
-│
-├─ Main Navigation
-│  └─ `frontend/app/(tabs)/_layout.tsx`
-│     ├─ Home
-│     ├─ History
-│     └─ Profile
-│
-├─ Feature Screens
-│  ├─ Home: `frontend/app/(tabs)/index.tsx`
-│  │  ├─ loads cycle stats
-│  │  ├─ loads prediction state
-│  │  └─ renders `CycleTracker`
-│  │
-│  ├─ History: `frontend/app/(tabs)/history.tsx`
-│  │  ├─ loads saved periods
-│  │  ├─ logs new period starts
-│  │  └─ refreshes prediction
-│  │
-│  └─ Profile: `frontend/app/(tabs)/profile.tsx`
-│     ├─ loads user profile
-│     ├─ saves name / DOB
-│     ├─ saves health conditions
-│     └─ saves user intent
-│
-├─ Hooks / Composition
-│  ├─ `frontend/hooks/use-database.ts`
-│  └─ `frontend/hooks/use-prediction.ts`
-│     ├─ fetches user + conditions + cycle stats
-│     ├─ computes age
-│     └─ calls prediction engine
-│
-├─ Domain / Data Access
-│  ├─ `frontend/services/dao/UserDao.ts`
-│  ├─ `frontend/services/dao/ProfileDao.ts`
-│  ├─ `frontend/services/dao/PeriodDao.ts`
-│  └─ `frontend/services/dao/CycleDao.ts`
-│
-├─ Security DAO Layer
-│  ├─ `frontend/dao/userDao.ts`
-│  └─ `frontend/dao/securityDao.ts`
-│
-├─ Business Logic
-│  └─ `frontend/engine/predictionEngine.ts`
-│     ├─ blends personal history + population defaults
-│     ├─ adjusts for conditions
-│     ├─ computes period/fertility windows
-│     └─ returns confidence + range
-│
-└─ Local Storage
-   └─ SQLite tables from `frontend/contexts/schema.js`
-      ├─ Users
-      ├─ Cycles
-      ├─ Periods
-      ├─ Entries
-      ├─ HealthConditions
-      ├─ UserBirthControl
-      ├─ UserIntent
-      ├─ Predictions
-      └─ SecuritySettings
-```
+## Note(s):
+- App runtime entry is `frontend/package.json` with `"main": "expo-router/entry"`.
+- The app boots Expo Router (not `App.jsx` / `index.jsx`).
+- Root navigation starts in `frontend/app/_layout.tsx`, then loads tabs from `frontend/app/(tabs)/_layout.tsx`.
