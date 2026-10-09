@@ -53,4 +53,19 @@ CREATE TABLE IF NOT EXISTS SecuritySettings (
 
     FOREIGN KEY (user_id) REFERENCES Users(user_id)
 );
+
+CREATE TABLE IF NOT EXISTS WellnessCheckIns (
+    checkin_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    mood TEXT NOT NULL CHECK (mood IN ('very_low', 'low', 'okay', 'good', 'great')),
+    energy INTEGER NOT NULL CHECK (energy BETWEEN 1 AND 5),
+    sleep_hours REAL,
+    water_glasses INTEGER,
+    symptoms TEXT,
+    updated_at TEXT NOT NULL,
+
+    UNIQUE (user_id, date),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
 `
