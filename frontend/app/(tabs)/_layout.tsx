@@ -1,10 +1,15 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { theme } from "@/theme/theme";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Tab navigator layout: defines the three main app tabs (History, Home, Profile)
 // and applies shared header/tab-bar styling from the theme.
 export default function TabLayout() {
+  const { isUnlocked, isDuress } = useAuth();
+  if (isDuress) return <Redirect href="/decoy" />;
+  if (!isUnlocked) return <Redirect href="/lock" />;
   return(
     <Tabs
       screenOptions={{
@@ -39,6 +44,17 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           )
+        }}
+      />
+
+      <Tabs.Screen
+        name="wellness"
+        options={{
+          title: "",
+          tabBarAccessibilityLabel: "Wellness check-in",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="heart-pulse" size={24} color={color} />
+          ),
         }}
       />
 
