@@ -18,6 +18,7 @@ All data is processed locally on your device and can be protected with an app PI
 4) Install necessary packages:
     ```bash
     npm install
+    npm install expo
     npm install expo@^57.0.0
     npx expo install --fix && npx expo-doctor
     ```
