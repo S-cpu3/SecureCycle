@@ -1,9 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { StatusBar } from "react-native";
 import { DatabaseProvider } from "@/contexts/DatabaseProvider";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Href, Stack, useRouter, useSegments } from "expo-router";
 import { PaperProvider } from 'react-native-paper';
-import { theme } from "@/theme/theme"
+import { buildPaperTheme } from "@/theme/theme";
 import { gateRedirect } from "@/utils/routeGate";
 
 // Decides which routes are reachable:
@@ -29,16 +31,22 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Root layout: wraps the entire app in the theme provider, the SQLite database
-// provider, and the auth gate. The PIN/biometric prompt itself lives in
-// app/index.tsx via LockScreen.
-export default function RootLayout() {
-  return(
-    <PaperProvider theme={theme}>
+// Themed shell: the Paper theme, status bar and screen background all follow the
+// user's System / Light / Dark choice from ThemeProvider.
+function ThemedApp() {
+  const { colors, scheme } = useTheme();
+  const paperTheme = useMemo(() => buildPaperTheme(scheme, colors), [scheme, colors]);
+
+  return (
+    <PaperProvider theme={paperTheme}>
+      <StatusBar
+        barStyle={scheme === "dark" ? "light-content" : "dark-content"}
+        backgroundColor={colors.background}
+      />
       <DatabaseProvider>
         <AuthProvider>
           <AuthGate>
-            <Stack screenOptions={{ headerShown: false }}>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="lock" />
               <Stack.Screen name="(tabs)" />
@@ -48,5 +56,16 @@ export default function RootLayout() {
         </AuthProvider>
       </DatabaseProvider>
     </PaperProvider>
-  )
+  );
+}
+
+// Root layout: wraps the entire app in the theme provider, the SQLite database
+// provider, and the auth gate. The PIN/biometric prompt itself lives in
+// app/index.tsx via LockScreen.
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <ThemedApp />
+    </ThemeProvider>
+  );
 }

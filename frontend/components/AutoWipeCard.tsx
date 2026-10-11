@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from "react";
-import { Alert, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from "react-native";
+import { Alert, StyleProp, Text, TextInput, View, ViewStyle } from "react-native";
 import { Button } from "react-native-paper";
 import { useFocusEffect } from "expo-router";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { makeSecurityCardStyles } from "@/components/securityCardStyles";
 import { useDatabase } from "@/hooks/use-database";
 import { ensurePrimaryUser, hasUsablePin, verifyUserPin } from "@/dao/userDao";
 import { getWipeThreshold, setWipeThreshold, WIPE_THRESHOLD_CHOICES } from "@/dao/duressDao";
@@ -19,6 +20,8 @@ function confirmDestructive(message: string) {
 /** Settings card for "erase data after N wrong PINs". Off by default. */
 export default function AutoWipeCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeSecurityCardStyles);
   const [userId, setUserId] = useState<number | null>(null);
   const [hasPin, setHasPin] = useState(false);
   const [current, setCurrent] = useState<number | null>(null);
@@ -81,6 +84,7 @@ export default function AutoWipeCard({ style }: { style?: StyleProp<ViewStyle> }
               <Button
                 key={String(option)}
                 mode={choice === option ? "contained" : "outlined"}
+                textColor={choice === option ? colors.onPrimary : colors.ink}
                 onPress={() => setChoice(option)}
                 style={styles.rowButton}
                 compact
@@ -89,11 +93,16 @@ export default function AutoWipeCard({ style }: { style?: StyleProp<ViewStyle> }
               </Button>
             ))}
           </View>
+          {choice !== null ? (
+            <Text style={styles.warning}>
+              After {choice} wrong PINs in a row, everything is erased. This cannot be undone.
+            </Text>
+          ) : null}
           <TextInput
             value={currentPin}
             onChangeText={setCurrentPin}
             placeholder="Current PIN"
-            placeholderTextColor="rgba(244, 243, 238, 0.45)"
+            placeholderTextColor={colors.inkSubtle}
             keyboardType="number-pad"
             maxLength={6}
             secureTextEntry
@@ -107,27 +116,3 @@ export default function AutoWipeCard({ style }: { style?: StyleProp<ViewStyle> }
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    padding: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    marginTop: theme.spacing.medium,
-  },
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginBottom: 6 },
-  body: { color: "rgba(244, 243, 238, 0.75)", lineHeight: 18, marginBottom: theme.spacing.small },
-  status: { color: theme.colors.text, marginBottom: theme.spacing.small },
-  row: { flexDirection: "row", gap: 8, marginBottom: theme.spacing.small },
-  rowButton: { flex: 1 },
-  input: {
-    color: theme.colors.text,
-    borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.25)",
-    borderRadius: theme.roundness * 2,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: theme.spacing.small,
-  },
-  button: { marginTop: theme.spacing.small },
-});

@@ -2,13 +2,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { Button } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { Palette, radius, space, type } from "@/theme/tokens";
 
 
 const RETRY_DELAY_MS = 1600;
 
 export default function DecoyScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [isRetrying, setIsRetrying] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -35,7 +38,7 @@ export default function DecoyScreen() {
     >
       {isRetrying ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Loading your data…</Text>
         </View>
       ) : (
@@ -55,7 +58,7 @@ export default function DecoyScreen() {
             <Button mode="contained" onPress={retry} style={styles.button}>
               Try again
             </Button>
-            <Button mode="outlined" onPress={retry} style={styles.button}>
+            <Button mode="outlined" textColor={colors.ink} onPress={retry} style={styles.button}>
               Go home
             </Button>
           </View>
@@ -65,35 +68,35 @@ export default function DecoyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: 24,
+    backgroundColor: colors.background,
+    paddingHorizontal: space[6],
     justifyContent: "space-between",
   },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   iconCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: radius.full,
     borderWidth: 2,
-    borderColor: theme.colors.primary,
+    borderColor: colors.danger,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    marginBottom: space[6],
   },
-  iconText: { color: theme.colors.primary, fontSize: 40, fontWeight: "700", lineHeight: 46 },
-  title: { color: theme.colors.text, fontSize: 24, fontWeight: "700", marginBottom: 12, textAlign: "center" },
+  iconText: { color: colors.danger, fontSize: 40, fontWeight: "700", lineHeight: 46 },
+  title: { ...type.sectionTitle, fontSize: 24, lineHeight: 30, color: colors.ink, marginBottom: space[3], textAlign: "center" },
   body: {
-    color: "rgba(244, 243, 238, 0.75)",
+    ...type.body,
     fontSize: 16,
-    lineHeight: 22,
+    color: colors.inkMuted,
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: space[4],
   },
-  code: { color: "rgba(244, 243, 238, 0.45)", fontSize: 13 },
-  loadingText: { color: "rgba(244, 243, 238, 0.75)", fontSize: 16, marginTop: 16 },
-  actions: { gap: 12 },
-  button: { paddingVertical: 4 },
+  code: { ...type.caption, fontSize: 13, color: colors.inkSubtle },
+  loadingText: { ...type.body, fontSize: 16, color: colors.inkMuted, marginTop: space[4] },
+  actions: { gap: space[3] },
+  button: { paddingVertical: space[1], borderRadius: radius.lg },
 });

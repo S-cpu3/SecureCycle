@@ -8,9 +8,11 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import LockScreen from "@/components/LockScreen";
-import { theme } from "@/theme/theme";
+import { useThemedStyles } from "@/contexts/ThemeContext";
+import { Palette, radius } from "@/theme/tokens";
 
 export default function Index() {
+  const styles = useThemedStyles(makeStyles);
   // Shared animation values: logo slides up and shrinks as the lock screen fades in.
   const logoY = useSharedValue(0);
   const logoScale = useSharedValue(1);
@@ -60,12 +62,12 @@ export default function Index() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   logoContainer: {
     position: "absolute",
@@ -74,10 +76,10 @@ const styles = StyleSheet.create({
   logoBadge: {
     width: 200,
     height: 200,
-    borderRadius: 100,
+    borderRadius: radius.full,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.colors.primary,
+    backgroundColor: colors.primary,
     overflow: "hidden",
   },
   logoImage: {

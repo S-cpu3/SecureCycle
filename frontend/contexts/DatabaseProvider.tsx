@@ -1,7 +1,8 @@
 import React, { createContext, useEffect, useState } from "react"
 import { Platform, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Button, Text } from "react-native-paper";
-import { theme } from "@/theme/theme";
+import { useThemedStyles } from "@/contexts/ThemeContext";
+import { Palette, space } from "@/theme/tokens";
 import { createAllTables } from "./schema";
 import * as SQLite from "expo-sqlite";
 import { ensurePrimaryUser } from "@/dao/userDao";
@@ -62,6 +63,7 @@ export function DatabaseProvider({ children }: LayoutProps) {
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const styles = useThemedStyles(makeStyles);
 
   useEffect(() => {
     let active = true;
@@ -109,14 +111,14 @@ export function DatabaseProvider({ children }: LayoutProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   status: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 28,
-    gap: 16,
-    backgroundColor: theme.colors.background,
+    gap: space[4],
+    backgroundColor: colors.background,
   },
-  message: { textAlign: "center", maxWidth: 440 },
+  message: { textAlign: "center", maxWidth: 440, color: colors.inkMuted },
 });
