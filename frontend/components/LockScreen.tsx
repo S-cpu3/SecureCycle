@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, Alert, AppState } from "react-native";
+import { View, Text, StyleSheet, Alert, AppState, Platform, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { Button } from "react-native-paper";
 import * as LocalAuthentication from "expo-local-authentication";
-import { theme } from "@/theme/theme";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { Palette, radius, size, space, type } from "@/theme/tokens";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -36,6 +38,8 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 export default function LockScreen() {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { unlock, enterDuress } = useAuth();
   // Set when the duress PIN was typed, so the unlock animation ends on the decoy
   // screen instead of the real app. A ref (not state) so the animation callback
@@ -292,19 +296,18 @@ export default function LockScreen() {
     handleUnlock();
   };
 
-  const renderPinInput = () => {
-    const displayPin = pin.padEnd(PIN_LENGTH, "_");
-
-    return (
-      <View style={styles.pinDisplayContainer}>
-        {displayPin.split("").map((char, index) => (
-          <Text key={index} style={styles.pinChar}>
-            {char === "_" ? "_" : "*"}
-          </Text>
-        ))}
-      </View>
-    );
-  };
+  // Entered digits show as filled dots, never as characters.
+  const renderPinInput = () => (
+    <View
+      style={styles.pinDisplayContainer}
+      accessible
+      accessibilityLabel={`${pin.length} of ${PIN_LENGTH} digits entered`}
+    >
+      {Array.from({ length: PIN_LENGTH }, (_, index) => (
+        <View key={index} style={[styles.pinDot, index < pin.length && styles.pinDotFilled]} />
+      ))}
+    </View>
+  );
 
   const renderNumberPad = () => {
     const numbers = [
@@ -313,37 +316,63 @@ export default function LockScreen() {
       ["7", "8", "9"],
       ["", "0", "back"],
     ];
+    const biometricIcon = Platform.OS === "ios" ? "face-recognition" : "fingerprint";
 
     return (
       <View style={styles.numberPad}>
         {numbers.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.numberPadRow}>
-            {row.map((num, colIndex) => (
-              <Button
-                key={colIndex}
-                mode="outlined"
-                style={styles.numberButton}
-                labelStyle={styles.numberButtonLabel}
-                onPress={() => {
-                  if (num === "back") {
-                    if (!isLocked) {
-                      setPin((previous) => previous.slice(0, -1));
+            {row.map((num, colIndex) => {
+              const isAction = num === "" || num === "back";
+              const disabled =
+                (num === "" && (!canUseBiometrics || !isBiometricEnabled)) || isLocked || !isLoaded;
+
+              return (
+                <Pressable
+                  key={colIndex}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    num === "back" ? "Delete digit" : num === "" ? "Unlock with biometrics" : num
+                  }
+                  accessibilityState={{ disabled }}
+                  disabled={disabled}
+                  android_ripple={{ color: colors.border, borderless: true, radius: size.pinKey / 2 }}
+                  style={({ pressed }) => [
+                    styles.numberButton,
+                    isAction && styles.actionButton,
+                    pressed && !isAction && styles.numberButtonPressed,
+                    disabled && styles.numberButtonDisabled,
+                    // Hide the biometric key entirely when biometrics are off.
+                    num === "" && (!canUseBiometrics || !isBiometricEnabled) && styles.hiddenButton,
+                  ]}
+                  onPress={() => {
+                    if (num === "back") {
+                      if (!isLocked) {
+                        setPin((previous) => previous.slice(0, -1));
+                      }
+                      return;
                     }
-                    return;
-                  }
 
-                  if (num === "") {
-                    handleBiometricAuth();
-                    return;
-                  }
+                    if (num === "") {
+                      handleBiometricAuth();
+                      return;
+                    }
 
-                  handlePinChange(pin + num);
-                }}
-                disabled={(num === "" && (!canUseBiometrics || !isBiometricEnabled)) || isLocked || !isLoaded}
-              >
-                {num === "back" ? "⌫" : num === "" ? " biometric " : num}
-              </Button>
-            ))}
+                    handlePinChange(pin + num);
+                  }}
+                >
+                  {num === "back" ? (
+                    <MaterialCommunityIcons name="backspace-outline" size={28} color={colors.accentInk} />
+                  ) : num === "" ? (
+                    <MaterialCommunityIcons name={biometricIcon} size={30} color={colors.accentInk} />
+                  ) : (
+                    <Text style={styles.numberButtonLabel} maxFontSizeMultiplier={1.4}>
+                      {num}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
         ))}
       </View>
@@ -372,7 +401,7 @@ export default function LockScreen() {
   return (
     <View style={styles.container}>
       <AnimatedLinearGradient
-        colors={[theme.colors.primary, theme.colors.secondary, theme.colors.background]}
+        colors={[colors.primary, colors.accent, colors.background]}
         style={[styles.gradientOverlay, gradientAnimatedStyle]}
       >
         <Animated.View style={logoAnimatedStyle}>
@@ -400,6 +429,7 @@ export default function LockScreen() {
           onPress={handlePinSubmit}
           disabled={pin.length !== PIN_LENGTH || isLocked || !isLoaded}
           style={styles.submitButton}
+          contentStyle={styles.submitButtonContent}
         >
           {isPinSet ? "Unlock" : "Set PIN"}
         </Button>
@@ -408,12 +438,12 @@ export default function LockScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   gradientOverlay: {
     ...StyleSheet.absoluteFill,
@@ -427,69 +457,91 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   helperText: {
-    marginBottom: theme.spacing.small,
-    color: "rgba(244, 243, 238, 0.78)",
-    fontSize: 14,
+    ...type.cardTitle,
+    marginBottom: space[1],
+    color: colors.ink,
   },
   lockMessage: {
-    marginBottom: theme.spacing.medium,
-    color: theme.colors.text,
-    fontSize: 16,
+    ...type.body,
+    marginBottom: space[6],
+    color: colors.danger,
     textAlign: "center",
-    paddingHorizontal: theme.spacing.large,
+    paddingHorizontal: space[6],
   },
   lockMessageMuted: {
-    marginBottom: theme.spacing.medium,
-    color: "rgba(244, 243, 238, 0.7)",
+    ...type.caption,
     fontSize: 13,
-    textAlign: "center",
-    paddingHorizontal: theme.spacing.large * 1.5,
     lineHeight: 18,
+    marginBottom: space[6],
+    color: colors.inkMuted,
+    textAlign: "center",
+    paddingHorizontal: space[8],
   },
   pinDisplayContainer: {
     flexDirection: "row",
-    marginBottom: theme.spacing.medium,
+    gap: space[3],
+    marginBottom: space[6],
   },
-  pinChar: {
-    fontSize: 30,
-    color: theme.colors.text,
-    marginHorizontal: theme.spacing.small * 1.25,
-    borderBottomWidth: 2,
-    borderColor: theme.colors.text,
-    width: 20,
-    textAlign: "center",
+  pinDot: {
+    width: 14,
+    height: 14,
+    borderRadius: radius.full,
+    borderWidth: 2,
+    borderColor: colors.borderStrong,
+  },
+  pinDotFilled: {
+    backgroundColor: colors.accentInk,
+    borderColor: colors.accentInk,
   },
   numberPad: {
     width: "80%",
-    marginBottom: theme.spacing.medium,
+    maxWidth: 320,
+    marginBottom: space[4],
   },
   numberPadRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginBottom: theme.spacing.small,
+    marginBottom: space[4],
   },
   numberButton: {
-    width: 80,
-    height: 80,
+    width: size.pinKey,
+    height: size.pinKey,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: theme.roundness * 5,
-    borderColor: theme.colors.primary,
+    borderRadius: radius.full,
+    borderColor: colors.borderStrong,
     borderWidth: 1,
+    backgroundColor: colors.surface,
+  },
+  actionButton: {
+    borderColor: "transparent",
+    backgroundColor: "transparent",
+  },
+  numberButtonPressed: {
+    backgroundColor: colors.surfaceRaised,
+  },
+  numberButtonDisabled: {
+    opacity: 0.4,
+  },
+  hiddenButton: {
+    opacity: 0,
   },
   numberButtonLabel: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: theme.colors.primary,
+    ...type.pinDigit,
+    color: colors.ink,
   },
   submitButton: {
-    marginTop: theme.spacing.medium,
+    marginTop: space[2],
     width: "80%",
-    paddingVertical: theme.spacing.small,
-    backgroundColor: theme.colors.primary,
+    maxWidth: 320,
+    borderRadius: radius.lg,
+  },
+  submitButtonContent: {
+    minHeight: size.touchTarget,
   },
   logo: {
     width: 110,
     height: 110,
+    borderRadius: radius.lg,
   },
 });

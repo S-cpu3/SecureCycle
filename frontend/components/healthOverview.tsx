@@ -1,7 +1,8 @@
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { cardShadow, ColorScheme, Palette, radius, size, space, type } from "@/theme/tokens";
 
 export type HealthMetric = {
   id: "sleep" | "hydration" | "movement" | "mood" | "other";
@@ -24,6 +25,9 @@ export default function HealthOverview({
   metrics,
   onMetricPress,
 }: HealthOverviewProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -34,7 +38,7 @@ export default function HealthOverview({
         <MaterialCommunityIcons
           name="heart-pulse"
           size={26}
-          color={theme.colors.secondary}
+          color={colors.accent}
           accessibilityElementsHidden
           importantForAccessibility="no"
         />
@@ -77,6 +81,8 @@ function MetricCard({
   metric: HealthMetric;
   onPress?: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const progress =
     typeof metric.progress === "number"
       ? Math.max(0, Math.min(100, Math.round(metric.progress)))
@@ -87,8 +93,8 @@ function MetricCard({
       <View style={styles.cardHeader}>
         <MaterialCommunityIcons
           name={metric.icon}
-          size={21}
-          color={theme.colors.secondary}
+          size={size.iconSm}
+          color={colors.accent}
           accessibilityElementsHidden
           importantForAccessibility="no"
         />
@@ -135,6 +141,7 @@ function MetricCard({
         metric.detail ? `, ${metric.detail}` : ""
       }`}
       onPress={onPress}
+      android_ripple={{ color: colors.border }}
       style={({ pressed }) => [
         styles.metricCard,
         pressed && styles.pressedCard,
@@ -145,7 +152,7 @@ function MetricCard({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, scheme: ColorScheme) => StyleSheet.create({
   container: {
     width: "100%",
   },
@@ -153,17 +160,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.medium,
+    marginBottom: space[4],
   },
   title: {
-    color: theme.colors.text,
-    fontSize: 20,
-    fontWeight: "700",
+    ...type.sectionTitle,
+    color: colors.ink,
   },
   date: {
-    color: "rgba(244, 243, 238, 0.68)",
-    fontSize: 13,
-    marginTop: 3,
+    ...type.caption,
+    color: colors.inkMuted,
+    marginTop: 2,
   },
   grid: {
     flexDirection: "row",
@@ -173,12 +179,13 @@ const styles = StyleSheet.create({
   metricCard: {
     width: "48%",
     minHeight: 132,
-    padding: theme.spacing.medium,
-    marginBottom: 12,
-    borderRadius: 18,
+    padding: space[4],
+    marginBottom: space[3],
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.14)",
-    backgroundColor: "rgba(188, 184, 177, 0.10)",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    ...cardShadow(scheme),
   },
   pressedCard: {
     opacity: 0.78,
@@ -186,54 +193,49 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: space[3],
   },
   label: {
-    color: "rgba(244, 243, 238, 0.78)",
-    fontSize: 13,
-    fontWeight: "600",
-    marginLeft: 8,
+    ...type.label,
+    color: colors.inkMuted,
+    marginLeft: space[2],
   },
   value: {
-    color: theme.colors.text,
-    fontSize: 20,
-    fontWeight: "700",
+    ...type.value,
+    color: colors.ink,
   },
   detail: {
-    color: "rgba(244, 243, 238, 0.64)",
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 5,
+    ...type.caption,
+    color: colors.inkMuted,
+    marginTop: space[1],
   },
   progressTrack: {
     height: 5,
-    borderRadius: 3,
+    borderRadius: radius.full,
     overflow: "hidden",
-    backgroundColor: "rgba(244, 243, 238, 0.16)",
-    marginTop: 12,
+    backgroundColor: colors.surfaceRaised,
+    marginTop: space[3],
   },
   progressFill: {
     height: "100%",
-    borderRadius: 3,
-    backgroundColor: theme.colors.secondary,
+    borderRadius: radius.full,
+    backgroundColor: colors.accent,
   },
+  // Sits inside the Home wellness card, so it is a raised well rather than a nested card.
   emptyCard: {
-    padding: theme.spacing.medium,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.14)",
-    backgroundColor: "rgba(188, 184, 177, 0.10)",
+    padding: space[4],
+    marginBottom: space[2],
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceRaised,
   },
   emptyTitle: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 5,
+    ...type.bodyStrong,
+    color: colors.ink,
+    marginBottom: space[1],
   },
   disclaimer: {
-    color: "rgba(244, 243, 238, 0.52)",
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 2,
+    ...type.finePrint,
+    color: colors.inkSubtle,
+    marginTop: space[1],
   },
 });

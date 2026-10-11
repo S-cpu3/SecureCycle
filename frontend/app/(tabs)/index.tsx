@@ -5,7 +5,8 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { router, useFocusEffect } from "expo-router";
 import CycleTracker, { CycleDay } from "@/components/CycleTracker";
 import HealthOverview, { HealthMetric } from "@/components/healthOverview";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { cardShadow, ColorScheme, Palette, radius, size, space, type } from "@/theme/tokens";
 import { useDatabase } from "@/hooks/use-database";
 import { getHomeCycleData, HomeCycleData, HomeCycleState } from "@/dao/cycleDao";
 import { ensurePrimaryUser } from "@/dao/userDao";
@@ -83,6 +84,8 @@ function buildWellnessMetrics(checkIn: WellnessCheckIn | null): HealthMetric[] {
 }
 
 function WellnessSummary({ checkIn }: { checkIn: WellnessCheckIn | null }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const dateLabel = new Date().toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
@@ -97,7 +100,7 @@ function WellnessSummary({ checkIn }: { checkIn: WellnessCheckIn | null }) {
       />
       <Button
         mode="outlined"
-        textColor={theme.colors.text}
+        textColor={colors.ink}
         onPress={() => router.push("/(tabs)/wellness")}
         style={styles.wellnessButton}
       >
@@ -109,6 +112,8 @@ function WellnessSummary({ checkIn }: { checkIn: WellnessCheckIn | null }) {
 
 export default function Index() {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [data, setData] = useState<HomeCycleState>(null);
   const [todayWellness, setTodayWellness] = useState<WellnessCheckIn | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -142,7 +147,7 @@ export default function Index() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={theme.colors.secondary} />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -196,17 +201,17 @@ export default function Index() {
       {/* Summary stat cards: period length, fertile window, and ovulation day */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <MaterialCommunityIcons name="water" size={20} color={theme.colors.secondary} />
+          <MaterialCommunityIcons name="water" size={size.iconSm} color={colors.accent} />
           <Text style={styles.summaryValue}>{data.periodDays.length} days</Text>
           <Text style={styles.summaryLabel}>Period</Text>
         </View>
         <View style={styles.summaryCard}>
-          <MaterialCommunityIcons name={"star-four-points" as any} size={20} color={theme.colors.secondary} />
+          <MaterialCommunityIcons name={"star-four-points" as any} size={size.iconSm} color={colors.accent} />
           <Text style={styles.summaryValue}>{data.fertileDays.length} days</Text>
           <Text style={styles.summaryLabel}>Fertile</Text>
         </View>
-        <View style={[styles.summaryCard, styles.summaryCardLast]}>
-          <MaterialCommunityIcons name="calendar-heart" size={20} color={theme.colors.secondary} />
+        <View style={styles.summaryCard}>
+          <MaterialCommunityIcons name="calendar-heart" size={size.iconSm} color={colors.accent} />
           <Text style={styles.summaryValue}>Day {data.ovulationDay}</Text>
           <Text style={styles.summaryLabel}>Ovulation</Text>
         </View>
@@ -233,134 +238,130 @@ export default function Index() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, scheme: ColorScheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingHorizontal: theme.spacing.medium,
-    paddingTop: theme.spacing.large,
-    paddingBottom: theme.spacing.large,
+    paddingHorizontal: space[4],
+    paddingTop: space[6],
+    paddingBottom: space[8],
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   emptyHeader: {
-    marginBottom: theme.spacing.large,
+    marginBottom: space[6],
   },
   emptyText: {
-    color: "rgba(244, 243, 238, 0.78)",
-    fontSize: 15,
-    lineHeight: 22,
+    ...type.body,
+    color: colors.inkMuted,
     textAlign: "center",
-    marginTop: theme.spacing.small,
-    marginBottom: theme.spacing.large,
+    marginTop: space[2],
+    marginBottom: space[6],
   },
   emptyButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.roundness * 3,
+    borderRadius: radius.lg,
   },
   wellnessSummary: {
-    marginTop: theme.spacing.large,
-    padding: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: "rgba(244, 243, 238, 0.06)",
+    marginTop: space[6],
+    padding: space[4],
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.12)",
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   wellnessButton: {
-    marginTop: theme.spacing.medium,
-    borderColor: "rgba(244, 243, 238, 0.4)",
+    marginTop: space[4],
+    borderRadius: radius.lg,
+    borderColor: colors.borderStrong,
   },
   header: {
-    marginBottom: theme.spacing.large,
+    marginBottom: space[6],
   },
   title: {
-    color: theme.colors.text,
-    fontSize: 30,
-    fontWeight: "700",
-    marginBottom: 8,
+    ...type.screenTitle,
+    color: colors.ink,
+    marginBottom: space[2],
   },
   subtitle: {
-    color: "rgba(244, 243, 238, 0.78)",
-    fontSize: 15,
-    lineHeight: 22,
+    ...type.body,
+    color: colors.inkMuted,
   },
   trackerWrap: {
     alignItems: "center",
-    marginBottom: theme.spacing.large,
+    marginBottom: space[6],
   },
   summaryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing.large,
+    gap: space[3],
+    marginBottom: space[6],
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderRadius: theme.roundness * 2,
-    padding: theme.spacing.medium,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: space[4],
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.1)",
-    marginRight: 10,
-  },
-  summaryCardLast: {
-    marginRight: 0,
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   summaryValue: {
-    color: theme.colors.text,
-    fontSize: 16,
+    ...type.bodyStrong,
     fontWeight: "700",
-    marginTop: 12,
-    marginBottom: 4,
+    fontVariant: ["tabular-nums"],
+    color: colors.ink,
+    marginTop: space[3],
+    marginBottom: space[1],
   },
   summaryLabel: {
-    color: "rgba(244, 243, 238, 0.7)",
-    fontSize: 12,
-    lineHeight: 16,
+    ...type.caption,
+    color: colors.inkMuted,
   },
   timelineCard: {
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderRadius: theme.roundness * 3,
-    padding: theme.spacing.medium,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: space[4],
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.1)",
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   timelineTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: theme.spacing.medium,
+    ...type.cardTitle,
+    color: colors.ink,
+    marginBottom: space[4],
   },
   timelineRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: theme.spacing.medium,
+    marginBottom: space[4],
   },
   timelineDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.colors.secondary,
+    borderRadius: radius.full,
+    backgroundColor: colors.accent,
     marginTop: 6,
-    marginRight: theme.spacing.small,
+    marginRight: space[2],
   },
   timelineText: {
     flex: 1,
   },
   timelineHeading: {
-    color: theme.colors.text,
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: "600",
-    marginBottom: 4,
+    color: colors.ink,
+    marginBottom: 2,
   },
   timelineBody: {
-    color: "rgba(244, 243, 238, 0.72)",
     fontSize: 13,
     lineHeight: 18,
+    color: colors.inkMuted,
   },
 });

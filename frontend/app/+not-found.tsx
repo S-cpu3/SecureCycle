@@ -1,8 +1,12 @@
 import { View, StyleSheet } from "react-native";
 import { Link, Stack } from "expo-router";
+import { useThemedStyles } from "@/contexts/ThemeContext";
+import { Palette, type } from "@/theme/tokens";
 
 // Fallback screen shown when no route matches anywhere in the app; links back to the root.
 export default function NotFoundScreen() {
+    const styles = useThemedStyles(makeStyles);
+
     return (
         <>
             <Stack.Screen options={{ title: 'Oops! Not Found' }} />
@@ -15,17 +19,17 @@ export default function NotFoundScreen() {
     )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   button: {
-    fontSize: 20,
+    ...type.bodyStrong,
     textDecorationLine: 'underline',
-    color: '#fff',
+    color: colors.accentInk,
   },
 });

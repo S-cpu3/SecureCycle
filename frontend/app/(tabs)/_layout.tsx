@@ -1,26 +1,34 @@
 import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import { theme } from "@/theme/theme";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Tab navigator layout: defines the three main app tabs (History, Home, Profile)
 // and applies shared header/tab-bar styling from the theme.
 export default function TabLayout() {
   const { isUnlocked, isDuress } = useAuth();
+  const { colors, scheme } = useTheme();
   if (isDuress) return <Redirect href="/decoy" />;
   if (!isUnlocked) return <Redirect href="/lock" />;
   return(
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: theme.colors.primary,
+        // Carmine is too dark to read as an icon tint on midnight, so dark mode uses rose.
+        tabBarActiveTintColor: scheme === "dark" ? colors.accentInk : colors.primary,
+        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarShowLabel: false,
         headerStyle: {
-          backgroundColor: theme.colors.background,
+          backgroundColor: colors.background,
         },
         headerShadowVisible: false,
-        headerTintColor: theme.colors.text,
+        headerTintColor: colors.ink,
+        sceneStyle: {
+          backgroundColor: colors.background,
+        },
         tabBarStyle: {
-          backgroundColor: theme.colors.background,
+          backgroundColor: colors.background,
+          borderTopColor: colors.border,
         },
       }}
     >
@@ -30,6 +38,7 @@ export default function TabLayout() {
         name="history"
         options={{ 
           title: "", 
+          tabBarAccessibilityLabel: "History",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
           ) 
@@ -41,6 +50,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "",
+          tabBarAccessibilityLabel: "Home",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           )
@@ -52,8 +62,8 @@ export default function TabLayout() {
         options={{
           title: "",
           tabBarAccessibilityLabel: "Wellness check-in",
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="heart-pulse" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? "heart-pulse" : "heart-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -63,6 +73,7 @@ export default function TabLayout() {
         name="profile"
         options={{ 
           title: "",
+          tabBarAccessibilityLabel: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
           ) 

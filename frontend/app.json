@@ -16,8 +16,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/SafeCycleLogo.png"
+        "backgroundColor": "#ad263a",
+        "foregroundImage": "./assets/images/adaptive-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -46,9 +46,9 @@
           "image": "./assets/images/SafeCycleLogo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#f4f3ee",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#260c1a"
           }
         }
       ],
@@ -56,7 +56,8 @@
       "expo-image",
       "expo-secure-store",
       "expo-sqlite",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

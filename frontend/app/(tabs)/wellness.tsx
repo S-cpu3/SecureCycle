@@ -25,7 +25,8 @@ import {
   WellnessMood,
 } from "@/dao/wellnessDao";
 import { useDatabase } from "@/hooks/use-database";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { cardShadow, ColorScheme, Palette, radius, size, space, type } from "@/theme/tokens";
 
 const MOOD_CHOICES: {
   value: WellnessMood;
@@ -63,6 +64,8 @@ function formatCheckInDetails(checkIn: WellnessCheckIn) {
 
 export default function WellnessScreen() {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [userId, setUserId] = useState<number | null>(null);
   const [todayCheckIn, setTodayCheckIn] = useState<WellnessCheckIn | null>(null);
   const [recentCheckIns, setRecentCheckIns] = useState<WellnessCheckIn[]>([]);
@@ -196,7 +199,7 @@ export default function WellnessScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={theme.colors.secondary} />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -204,7 +207,7 @@ export default function WellnessScreen() {
   if (loadError) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.title}>Wellness</Text>
+        <Text style={styles.title}>Daily wellness</Text>
         <Text style={styles.errorText}>{loadError}</Text>
       </View>
     );
@@ -241,9 +244,10 @@ export default function WellnessScreen() {
             return (
               <Pressable
                 key={choice.value}
-                accessibilityRole="button"
+                accessibilityRole="radio"
                 accessibilityLabel={`Mood: ${choice.label}`}
-                accessibilityState={{ selected }}
+                accessibilityState={{ checked: selected }}
+                android_ripple={{ color: colors.border }}
                 onPress={() => setMood(choice.value)}
                 style={({ pressed }) => [
                   styles.moodChoice,
@@ -254,7 +258,7 @@ export default function WellnessScreen() {
                 <MaterialCommunityIcons
                   name={choice.icon}
                   size={23}
-                  color={selected ? theme.colors.text : theme.colors.secondary}
+                  color={selected ? colors.onPrimary : colors.inkMuted}
                 />
                 <Text
                   style={[
@@ -278,9 +282,9 @@ export default function WellnessScreen() {
             return (
               <Pressable
                 key={level}
-                accessibilityRole="button"
+                accessibilityRole="radio"
                 accessibilityLabel={`Energy ${level} out of 5`}
-                accessibilityState={{ selected }}
+                accessibilityState={{ checked: selected }}
                 onPress={() => setEnergy(level)}
                 style={({ pressed }) => [
                   styles.energyChoice,
@@ -309,9 +313,8 @@ export default function WellnessScreen() {
             keyboardType="decimal-pad"
             mode="outlined"
             placeholder="Optional"
-            textColor={theme.colors.background}
-            outlineColor="rgba(38, 12, 26, 0.35)"
-            activeOutlineColor={theme.colors.primary}
+            outlineColor={colors.borderStrong}
+            activeOutlineColor={colors.focus}
             style={styles.numericInput}
           />
           <TextInput
@@ -321,9 +324,8 @@ export default function WellnessScreen() {
             keyboardType="number-pad"
             mode="outlined"
             placeholder="Optional"
-            textColor={theme.colors.background}
-            outlineColor="rgba(38, 12, 26, 0.35)"
-            activeOutlineColor={theme.colors.primary}
+            outlineColor={colors.borderStrong}
+            activeOutlineColor={colors.focus}
             style={styles.numericInput}
           />
         </View>
@@ -336,9 +338,8 @@ export default function WellnessScreen() {
           multiline
           numberOfLines={4}
           maxLength={500}
-          textColor={theme.colors.background}
-          outlineColor="rgba(38, 12, 26, 0.35)"
-          activeOutlineColor={theme.colors.primary}
+          outlineColor={colors.borderStrong}
+          activeOutlineColor={colors.focus}
           style={styles.symptomsInput}
         />
         <Text style={styles.characterCount}>{symptoms.length}/500</Text>
@@ -353,8 +354,6 @@ export default function WellnessScreen() {
           onPress={handleSave}
           loading={isSaving}
           disabled={isSaving}
-          buttonColor={theme.colors.primary}
-          textColor={theme.colors.text}
           style={styles.saveButton}
           contentStyle={styles.saveButtonContent}
         >
@@ -379,8 +378,8 @@ export default function WellnessScreen() {
                 <View style={styles.historyIcon}>
                   <MaterialCommunityIcons
                     name="heart-pulse"
-                    size={20}
-                    color={theme.colors.secondary}
+                    size={18}
+                    color={colors.accentInk}
                   />
                 </View>
                 <View style={styles.historyDetails}>
@@ -413,177 +412,182 @@ export default function WellnessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, scheme: ColorScheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   contentContainer: {
-    padding: theme.spacing.medium,
-    paddingBottom: 36,
+    paddingHorizontal: space[4],
+    paddingTop: space[6],
+    paddingBottom: space[8],
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
-    padding: theme.spacing.large,
-    backgroundColor: theme.colors.background,
+    padding: space[6],
+    backgroundColor: colors.background,
   },
   header: {
-    marginBottom: theme.spacing.medium,
+    marginBottom: space[6],
   },
   title: {
-    color: theme.colors.text,
-    fontSize: 29,
-    fontWeight: "700",
+    ...type.screenTitle,
+    color: colors.ink,
   },
   subtitle: {
-    color: theme.colors.secondary,
+    ...type.bodyStrong,
     fontSize: 15,
-    fontWeight: "600",
-    marginTop: 5,
+    color: colors.accentInk,
+    marginTop: space[1],
   },
   helperText: {
-    color: "rgba(244, 243, 238, 0.72)",
+    ...type.caption,
     fontSize: 13,
     lineHeight: 19,
-    marginTop: 5,
+    color: colors.inkMuted,
+    marginTop: space[1],
   },
   formCard: {
-    padding: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
+    padding: space[4],
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.12)",
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 4,
+    ...type.cardTitle,
+    color: colors.ink,
+    marginBottom: space[1],
   },
   moodGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: theme.spacing.small,
-    marginBottom: theme.spacing.medium,
+    columnGap: "3.5%",
+    marginTop: space[2],
+    marginBottom: space[4],
   },
   moodChoice: {
     width: "31%",
-    minHeight: 70,
-    flexDirection: "row",
+    minHeight: 72,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 5,
-    marginBottom: 8,
-    borderRadius: 14,
+    gap: space[1],
+    paddingHorizontal: space[1],
+    marginBottom: space[2],
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.18)",
-    backgroundColor: "rgba(244, 243, 238, 0.06)",
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceRaised,
+    overflow: "hidden",
   },
   selectedChoice: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.secondary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   moodLabel: {
-    color: theme.colors.text,
-    fontSize: 11,
+    ...type.caption,
     fontWeight: "600",
+    color: colors.ink,
     textAlign: "center",
-    marginLeft: 5,
   },
   selectedChoiceText: {
-    color: theme.colors.text,
+    color: colors.onPrimary,
     fontWeight: "700",
   },
   pressedChoice: {
-    opacity: 0.75,
+    opacity: 0.78,
   },
   energyRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: theme.spacing.small,
-    marginBottom: theme.spacing.medium,
+    marginTop: space[2],
+    marginBottom: space[4],
   },
   energyChoice: {
-    width: 48,
-    height: 48,
+    width: size.touchTarget,
+    height: size.touchTarget,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 24,
+    borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.24)",
-    backgroundColor: "rgba(244, 243, 238, 0.06)",
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceRaised,
   },
   selectedEnergy: {
-    borderColor: theme.colors.secondary,
-    backgroundColor: theme.colors.primary,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   energyValue: {
-    color: theme.colors.text,
-    fontSize: 16,
-    fontWeight: "600",
+    ...type.bodyStrong,
+    fontVariant: ["tabular-nums"],
+    color: colors.ink,
   },
   numericRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.medium,
+    marginBottom: space[4],
   },
   numericInput: {
     width: "48%",
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
   },
   symptomsInput: {
     minHeight: 110,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
   },
   characterCount: {
-    color: "rgba(244, 243, 238, 0.56)",
-    fontSize: 11,
+    ...type.finePrint,
+    color: colors.inkSubtle,
     textAlign: "right",
-    marginTop: 4,
+    marginTop: space[1],
   },
   saveButton: {
-    marginTop: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
+    marginTop: space[4],
+    borderRadius: radius.lg,
   },
   saveButtonContent: {
-    minHeight: 48,
+    minHeight: size.touchTarget,
   },
   successText: {
-    color: "#A9E7BF",
+    ...type.caption,
     fontSize: 13,
-    marginTop: theme.spacing.small,
+    color: colors.success,
+    marginTop: space[2],
   },
   errorText: {
-    color: "#FFC0C7",
+    ...type.caption,
     fontSize: 13,
     lineHeight: 19,
-    marginTop: theme.spacing.small,
+    color: colors.danger,
+    marginTop: space[2],
   },
   historyCard: {
-    marginTop: theme.spacing.large,
-    padding: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
+    marginTop: space[6],
+    padding: space[4],
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.12)",
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   emptyText: {
-    color: "rgba(244, 243, 238, 0.68)",
+    ...type.caption,
     fontSize: 13,
     lineHeight: 20,
-    marginTop: theme.spacing.medium,
+    color: colors.inkMuted,
+    marginTop: space[4],
   },
   divider: {
-    backgroundColor: "rgba(244, 243, 238, 0.16)",
-    marginVertical: theme.spacing.small,
+    backgroundColor: colors.border,
+    marginVertical: space[3],
   },
   historyRow: {
     flexDirection: "row",
@@ -594,29 +598,29 @@ const styles = StyleSheet.create({
     height: 34,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: theme.spacing.small,
-    borderRadius: 17,
-    backgroundColor: "rgba(219, 69, 123, 0.14)",
+    marginRight: space[3],
+    borderRadius: radius.full,
+    backgroundColor: colors.accentSoft,
   },
   historyDetails: {
     flex: 1,
   },
   historyDate: {
-    color: theme.colors.text,
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: "600",
+    color: colors.ink,
   },
   historyText: {
-    color: "rgba(244, 243, 238, 0.72)",
-    fontSize: 12,
+    ...type.caption,
     lineHeight: 18,
-    marginTop: 3,
+    color: colors.inkMuted,
+    marginTop: 2,
   },
   disclaimer: {
-    color: "rgba(244, 243, 238, 0.54)",
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: theme.spacing.medium,
-    marginBottom: theme.spacing.medium,
+    ...type.finePrint,
+    color: colors.inkSubtle,
+    marginTop: space[4],
+    marginBottom: space[4],
   },
 });

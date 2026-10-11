@@ -1,14 +1,14 @@
-import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Text } from "react-native-paper";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { cardShadow, ColorScheme, Palette, radius, size, space, type } from "@/theme/tokens";
 
-const DIAMETER = 300;
+const DIAMETER = size.ringDiameter;
 const RADIUS = DIAMETER / 2;
-const CENTER_SIZE = 194;
-const DAY_SIZE = 26;
+const CENTER_SIZE = size.ringCenter;
+const DAY_SIZE = size.dayNode;
 
 export type CycleDayStatus = "period" | "fertile" | "ovulation" | "luteal";
 
@@ -25,28 +25,30 @@ type CycleTrackerProps = {
   days: CycleDay[];
 };
 
-const STATUS_STYLES: Record<CycleDayStatus, { backgroundColor: string; color: string; icon: ReactNode }> = {
-  period: {
-    backgroundColor: "rgba(173, 38, 58, 0.95)",
-    color: theme.colors.text,
-    icon: <Entypo name="drop" size={16} color={theme.colors.text} />,
-  },
-  fertile: {
-    backgroundColor: "rgba(219, 69, 123, 0.45)",
-    color: theme.colors.text,
-    icon: <MaterialCommunityIcons name={"star-four-points" as any} size={16} color={theme.colors.text} />,
-  },
-  ovulation: {
-    backgroundColor: theme.colors.secondary,
-    color: theme.colors.background,
-    icon: <MaterialCommunityIcons name="radiology-box" size={16} color={theme.colors.background} />,
-  },
-  luteal: {
-    backgroundColor: "rgba(244, 243, 238, 0.14)",
-    color: theme.colors.text,
-    icon: <MaterialCommunityIcons name="circle-small" size={16} color={theme.colors.text} />,
-  },
-};
+// Every phase carries an icon as well as a colour: in dark mode period and
+// fertile are close in lightness, so the icon is what tells them apart.
+function phaseStyle(status: CycleDayStatus, colors: Palette) {
+  switch (status) {
+    case "period":
+      return { backgroundColor: colors.phasePeriod, color: colors.onPhasePeriod };
+    case "fertile":
+      return { backgroundColor: colors.phaseFertile, color: colors.onPhaseFertile };
+    case "ovulation":
+      return { backgroundColor: colors.phaseOvulation, color: colors.onPhaseOvulation };
+    default:
+      return { backgroundColor: colors.phaseLuteal, color: colors.onPhaseLuteal };
+  }
+}
+
+function PhaseIcon({ status, color }: { status: CycleDayStatus; color: string }) {
+  if (status === "period") {
+    return <Entypo name="drop" size={14} color={color} />;
+  }
+
+  const name =
+    status === "fertile" ? "star-four-points" : status === "ovulation" ? "target" : "circle-small";
+  return <MaterialCommunityIcons name={name} size={status === "luteal" ? 16 : 14} color={color} />;
+}
 
 export default function CycleTracker({
   monthLabel,
@@ -55,15 +57,23 @@ export default function CycleTracker({
   subtitle,
   days,
 }: CycleTrackerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`Cycle day ${dayLabel} of ${days.length}, ${statusLabel}`}
+    >
       <View style={styles.outerRing}>
         {days.map((day, index) => {
           const angle = (2 * Math.PI * index) / days.length - Math.PI / 2;
           const distance = RADIUS - 10;
           const x = distance * Math.cos(angle) + RADIUS - DAY_SIZE / 2;
           const y = distance * Math.sin(angle) + RADIUS - DAY_SIZE / 2;
-          const status = STATUS_STYLES[day.status];
+          const status = phaseStyle(day.status, colors);
 
           return (
             <View
@@ -77,7 +87,7 @@ export default function CycleTracker({
                 },
               ]}
             >
-              {status.icon}
+              <PhaseIcon status={day.status} color={status.color} />
             </View>
           );
         })}
@@ -93,7 +103,7 @@ export default function CycleTracker({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, scheme: ColorScheme) => StyleSheet.create({
   container: {
     width: "100%",
     alignItems: "center",
@@ -101,60 +111,54 @@ const styles = StyleSheet.create({
   outerRing: {
     width: DIAMETER,
     height: DIAMETER,
-    borderRadius: DIAMETER / 2,
-    backgroundColor: "rgba(188, 184, 177, 0.16)",
+    borderRadius: radius.full,
+    backgroundColor: colors.ringTrack,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.16)",
+    borderColor: colors.border,
   },
   dayNode: {
     position: "absolute",
     width: DAY_SIZE,
     height: DAY_SIZE,
-    borderRadius: DAY_SIZE / 2,
+    borderRadius: radius.full,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.14)",
   },
   centerCard: {
     position: "absolute",
     width: CENTER_SIZE,
     height: CENTER_SIZE,
-    borderRadius: CENTER_SIZE / 2,
+    borderRadius: radius.full,
     left: RADIUS - CENTER_SIZE / 2,
     top: RADIUS - CENTER_SIZE / 2,
-    backgroundColor: "rgba(38, 12, 26, 0.92)",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.16)",
+    borderColor: colors.border,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: theme.spacing.medium,
+    paddingHorizontal: space[4],
+    ...cardShadow(scheme),
   },
   monthText: {
-    color: "rgba(244, 243, 238, 0.72)",
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
-    fontSize: 12,
-    marginBottom: 6,
+    ...type.eyebrow,
+    color: colors.inkMuted,
+    marginBottom: space[1],
   },
   dayText: {
-    color: theme.colors.text,
-    fontSize: 50,
-    fontWeight: "700",
-    lineHeight: 54,
+    ...type.cycleDay,
+    color: colors.ink,
   },
   statusText: {
-    color: theme.colors.secondary,
+    ...type.bodyStrong,
     fontSize: 15,
-    fontWeight: "600",
-    marginTop: 6,
+    color: colors.accentInk,
+    marginTop: space[1],
     textAlign: "center",
   },
   subtitleText: {
-    color: "rgba(244, 243, 238, 0.8)",
-    fontSize: 12,
-    lineHeight: 16,
+    ...type.caption,
+    color: colors.inkMuted,
     textAlign: "center",
-    marginTop: 6,
+    marginTop: space[1],
   },
 });

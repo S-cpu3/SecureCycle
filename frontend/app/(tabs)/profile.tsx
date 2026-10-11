@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { Button, Card, Divider, Text } from "react-native-paper";
+import { Button, Card, Divider, SegmentedButtons, Text } from "react-native-paper";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import * as LocalAuthentication from "expo-local-authentication";
 import Constants from "expo-constants";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import QRCode from "react-native-qrcode-svg";
 import { useFocusEffect } from "expo-router";
-import { theme } from "@/theme/theme";
+import { Appearance, useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { cardShadow, ColorScheme, Palette, radius, size, space, type } from "@/theme/tokens";
 import { useDatabase } from "@/hooks/use-database";
 import { getExportData, getHomeCycleData } from "@/dao/cycleDao";
 import { ensurePrimaryUser, updateUserPin, updateUserProfile, UserProfile } from "@/dao/userDao";
@@ -130,6 +131,8 @@ function buildPdfHtml(payload: SharePayload) {
 
 export default function Profile() {
   const db = useDatabase();
+  const { colors, scheme, appearance, setAppearance } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   // State: user profile, security settings, cycle snapshot, edit fields, and modal visibility flags.
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -430,11 +433,11 @@ export default function Profile() {
 
           <View style={styles.badgeRow}>
             <View style={styles.badge}>
-              <MaterialCommunityIcons name="shield-check" size={16} color={theme.colors.text} />
+              <MaterialCommunityIcons name="shield-check" size={16} color={colors.ink} />
               <Text style={styles.badgeText}>Private</Text>
             </View>
-            <View style={[styles.badge, styles.badgeSpacer]}>
-              <MaterialCommunityIcons name="face-recognition" size={16} color={theme.colors.text} />
+            <View style={styles.badge}>
+              <MaterialCommunityIcons name="face-recognition" size={16} color={colors.ink} />
               <Text style={styles.badgeText}>{security?.biometric_enabled ? "Biometric ready" : "PIN only"}</Text>
             </View>
           </View>
@@ -442,23 +445,23 @@ export default function Profile() {
 
         {/* Stat cards: cycle length, current cycle day, and days until next period */}
         <View style={styles.statRow}>
-          <Card style={[styles.statCard, styles.statCardSpacer]}>
+          <Card style={styles.statCard}>
             <Card.Content style={styles.statCardContent}>
-              <MaterialCommunityIcons name="calendar-month" size={22} color={theme.colors.secondary} />
+              <MaterialCommunityIcons name="calendar-month" size={size.iconSm} color={colors.accent} />
               <Text style={styles.statValue}>28 days</Text>
               <Text style={styles.statLabel}>Cycle length</Text>
             </Card.Content>
           </Card>
-          <Card style={[styles.statCard, styles.statCardSpacer]}>
+          <Card style={styles.statCard}>
             <Card.Content style={styles.statCardContent}>
-              <MaterialCommunityIcons name="heart-pulse" size={22} color={theme.colors.secondary} />
+              <MaterialCommunityIcons name="heart-pulse" size={size.iconSm} color={colors.accent} />
               <Text style={styles.statValue}>Day {cycleDay}</Text>
               <Text style={styles.statLabel}>Cycle day</Text>
             </Card.Content>
           </Card>
           <Card style={styles.statCard}>
             <Card.Content style={styles.statCardContent}>
-              <MaterialCommunityIcons name="clock-outline" size={22} color={theme.colors.secondary} />
+              <MaterialCommunityIcons name="clock-outline" size={size.iconSm} color={colors.accent} />
               <Text style={styles.statValue}>{daysUntilPeriod} days</Text>
               <Text style={styles.statLabel}>Until next period</Text>
             </Card.Content>
@@ -473,8 +476,8 @@ export default function Profile() {
               <Text style={styles.sectionSubtitle}>Basic details</Text>
             </View>
             <Divider style={styles.divider} />
-            <TextInput value={firstName} onChangeText={setFirstName} placeholder="First name" placeholderTextColor="rgba(244, 243, 238, 0.45)" style={styles.input} />
-            <TextInput value={lastName} onChangeText={setLastName} placeholder="Last name" placeholderTextColor="rgba(244, 243, 238, 0.45)" style={styles.input} />
+            <TextInput value={firstName} onChangeText={setFirstName} placeholder="First name" placeholderTextColor={colors.inkSubtle} style={styles.input} />
+            <TextInput value={lastName} onChangeText={setLastName} placeholder="Last name" placeholderTextColor={colors.inkSubtle} style={styles.input} />
             <Pressable style={styles.dateButton} onPress={openBirthDatePicker}>
               <Text style={styles.dateButtonLabel}>Birthday</Text>
               <Text style={styles.dateButtonValue}>{formatBirthDate(birthDate)}</Text>
@@ -482,6 +485,25 @@ export default function Profile() {
             <Button mode="contained" style={styles.primaryButton} onPress={handleSaveProfile} loading={isSaving}>
               Save profile
             </Button>
+          </Card.Content>
+        </Card>
+
+        {/* Display card: System / Light / Dark appearance, stored on this device */}
+        <Card style={styles.sectionCard}>
+          <Card.Content>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Appearance</Text>
+              <Text style={styles.sectionSubtitle}>Applies on this device only</Text>
+            </View>
+            <SegmentedButtons
+              value={appearance}
+              onValueChange={(value) => setAppearance(value as Appearance)}
+              buttons={[
+                { value: "system", label: "System", accessibilityLabel: "Match system appearance" },
+                { value: "light", label: "Light", accessibilityLabel: "Light appearance" },
+                { value: "dark", label: "Dark", accessibilityLabel: "Dark appearance" },
+              ]}
+            />
           </Card.Content>
         </Card>
 
@@ -495,8 +517,8 @@ export default function Profile() {
             <Divider style={styles.divider} />
             <Text style={styles.snapshotValue}>{phaseLabel}</Text>
             <Text style={styles.supportText}>Face ID unlock does not fall back to the device passcode.</Text>
-            <TextInput value={newPin} onChangeText={setNewPin} placeholder="New 6-digit PIN" placeholderTextColor="rgba(244, 243, 238, 0.45)" keyboardType="number-pad" maxLength={6} style={styles.input} />
-            <TextInput value={confirmPin} onChangeText={setConfirmPin} placeholder="Confirm new PIN" placeholderTextColor="rgba(244, 243, 238, 0.45)" keyboardType="number-pad" maxLength={6} style={styles.input} />
+            <TextInput value={newPin} onChangeText={setNewPin} placeholder="New 6-digit PIN" placeholderTextColor={colors.inkSubtle} keyboardType="number-pad" maxLength={6} style={styles.input} />
+            <TextInput value={confirmPin} onChangeText={setConfirmPin} placeholder="Confirm new PIN" placeholderTextColor={colors.inkSubtle} keyboardType="number-pad" maxLength={6} style={styles.input} />
             <Button mode="contained" style={styles.primaryButton} onPress={handleChangePin}>
               Update PIN
             </Button>
@@ -504,7 +526,7 @@ export default function Profile() {
               <Button mode="contained" style={[styles.primaryButton, styles.inlineButton]} onPress={handleEnableBiometrics} loading={isFaceIdBusy}>
                 Enable Face ID
               </Button>
-              <Button mode="outlined" textColor={theme.colors.text} style={[styles.secondaryButton, styles.inlineButton]} onPress={handleDisableBiometrics}>
+              <Button mode="outlined" textColor={colors.ink} style={[styles.secondaryButton, styles.inlineButton]} onPress={handleDisableBiometrics}>
                 Disable
               </Button>
             </View>
@@ -529,7 +551,7 @@ export default function Profile() {
             <Divider style={styles.divider} />
             <View style={styles.row}>
               <View style={styles.rowIcon}>
-                <MaterialCommunityIcons name="file-pdf-box" size={18} color={theme.colors.background} />
+                <MaterialCommunityIcons name="file-pdf-box" size={18} color={colors.accentInk} />
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>PDF export</Text>
@@ -538,7 +560,7 @@ export default function Profile() {
             </View>
             <View style={styles.row}>
               <View style={styles.rowIcon}>
-                <MaterialCommunityIcons name="qrcode" size={18} color={theme.colors.background} />
+                <MaterialCommunityIcons name="qrcode" size={18} color={colors.accentInk} />
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>Doctor QR</Text>
@@ -549,7 +571,7 @@ export default function Profile() {
               <Button mode="contained" style={[styles.primaryButton, styles.inlineButton]} onPress={handleExportPdf} loading={isExporting}>
                 Export PDF
               </Button>
-              <Button mode="outlined" textColor={theme.colors.text} style={[styles.secondaryButton, styles.inlineButton]} onPress={handleShowQr}>
+              <Button mode="outlined" textColor={colors.ink} style={[styles.secondaryButton, styles.inlineButton]} onPress={handleShowQr}>
                 Show QR
               </Button>
             </View>
@@ -589,13 +611,14 @@ export default function Profile() {
               display="spinner"
               maximumDate={new Date()}
               onChange={handleBirthDateChange}
-              textColor={theme.colors.background}
+              textColor={colors.ink}
+              themeVariant={scheme}
             />
             <View style={styles.inlineButtons}>
-              <Button mode="outlined" textColor={theme.colors.background} style={[styles.dateModalButton, styles.dateModalSecondary]} onPress={() => setShowBirthDatePicker(false)}>
+              <Button mode="outlined" textColor={colors.ink} style={[styles.dateModalButton, styles.dateModalSecondary]} onPress={() => setShowBirthDatePicker(false)}>
                 Cancel
               </Button>
-              <Button mode="contained" style={[styles.dateModalButton, styles.dateModalPrimary]} onPress={confirmBirthDate}>
+              <Button mode="contained" style={styles.dateModalButton} onPress={confirmBirthDate}>
                 Done
               </Button>
             </View>
@@ -608,6 +631,7 @@ export default function Profile() {
           value={birthDateDraft}
           mode="date"
           display="default"
+          themeVariant={scheme}
           maximumDate={new Date()}
           onChange={handleBirthDateChange}
         />
@@ -616,279 +640,293 @@ export default function Profile() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, scheme: ColorScheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingHorizontal: theme.spacing.medium,
-    paddingTop: theme.spacing.large,
-    paddingBottom: theme.spacing.large * 2,
+    paddingHorizontal: space[4],
+    paddingTop: space[6],
+    paddingBottom: space[8] * 2,
   },
   hero: {
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderRadius: theme.roundness * 3,
-    padding: theme.spacing.large,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: space[6],
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.12)",
+    borderColor: colors.border,
     alignItems: "center",
-    marginBottom: theme.spacing.large,
+    marginBottom: space[6],
+    ...cardShadow(scheme),
   },
   avatar: {
     width: 88,
     height: 88,
-    borderRadius: 44,
-    backgroundColor: theme.colors.primary,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: theme.spacing.medium,
+    marginBottom: space[4],
   },
   avatarText: {
-    color: theme.colors.text,
+    color: colors.onPrimary,
     fontSize: 26,
     fontWeight: "700",
   },
   name: {
-    color: theme.colors.text,
+    ...type.screenTitle,
     fontSize: 26,
-    fontWeight: "700",
-    marginBottom: 8,
+    lineHeight: 32,
+    color: colors.ink,
+    marginBottom: space[2],
     textAlign: "center",
   },
   handle: {
-    color: "rgba(244, 243, 238, 0.74)",
-    textAlign: "center",
+    ...type.body,
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: theme.spacing.medium,
+    color: colors.inkMuted,
+    textAlign: "center",
+    marginBottom: space[4],
   },
   badgeRow: {
     flexDirection: "row",
     justifyContent: "center",
+    gap: space[2],
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(38, 12, 26, 0.4)",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.full,
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.1)",
-    marginRight: 10,
-  },
-  badgeSpacer: {
-    marginRight: 0,
+    borderColor: colors.border,
   },
   badgeText: {
-    color: theme.colors.text,
-    fontSize: 12,
+    ...type.caption,
     fontWeight: "600",
+    color: colors.ink,
     marginLeft: 6,
   },
   statRow: {
     flexDirection: "row",
-    marginBottom: theme.spacing.large,
+    gap: space[3],
+    marginBottom: space[6],
   },
   statCard: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.roundness * 2,
-  },
-  statCardSpacer: {
-    marginRight: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   statCardContent: {
     minHeight: 118,
   },
   statValue: {
-    color: theme.colors.background,
+    ...type.bodyStrong,
     fontSize: 18,
     fontWeight: "700",
-    marginTop: 16,
-    marginBottom: 4,
+    fontVariant: ["tabular-nums"],
+    color: colors.ink,
+    marginTop: space[3],
+    marginBottom: space[1],
   },
   statLabel: {
-    color: "rgba(38, 12, 26, 0.72)",
-    fontSize: 12,
-    lineHeight: 16,
+    ...type.caption,
+    color: colors.inkMuted,
   },
   sectionCard: {
-    marginBottom: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
+    marginBottom: space[4],
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.12)",
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   sectionHeader: {
-    marginBottom: 12,
+    marginBottom: space[3],
   },
   sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 4,
+    ...type.cardTitle,
+    color: colors.ink,
+    marginBottom: space[1],
   },
   sectionSubtitle: {
-    color: "rgba(244, 243, 238, 0.68)",
-    fontSize: 12,
+    ...type.caption,
+    color: colors.inkMuted,
   },
   divider: {
-    marginBottom: theme.spacing.medium,
-    backgroundColor: "rgba(244, 243, 238, 0.12)",
+    marginBottom: space[4],
+    backgroundColor: colors.border,
   },
   input: {
+    minHeight: size.touchTarget,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.18)",
-    borderRadius: theme.roundness * 2,
-    paddingHorizontal: theme.spacing.medium,
-    paddingVertical: 14,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.small,
-    backgroundColor: "rgba(38, 12, 26, 0.4)",
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    fontSize: 16,
+    color: colors.ink,
+    marginBottom: space[2],
+    backgroundColor: colors.surface,
   },
   dateButton: {
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.18)",
-    borderRadius: theme.roundness * 2,
-    paddingHorizontal: theme.spacing.medium,
-    paddingVertical: 14,
-    marginBottom: theme.spacing.small,
-    backgroundColor: "rgba(38, 12, 26, 0.4)",
+    borderColor: colors.borderStrong,
+    borderRadius: radius.sm,
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    marginBottom: space[2],
+    backgroundColor: colors.surface,
   },
   dateButtonLabel: {
-    color: "rgba(244, 243, 238, 0.55)",
-    fontSize: 12,
-    marginBottom: 4,
+    ...type.caption,
+    color: colors.inkMuted,
+    marginBottom: space[1],
   },
   dateButtonValue: {
-    color: theme.colors.text,
     fontSize: 16,
+    lineHeight: 22,
+    color: colors.ink,
   },
   primaryButton: {
-    borderRadius: theme.roundness * 3,
-    backgroundColor: theme.colors.primary,
-    marginTop: theme.spacing.small,
+    borderRadius: radius.lg,
+    marginTop: space[2],
   },
   secondaryButton: {
-    borderRadius: theme.roundness * 3,
-    borderColor: "rgba(244, 243, 238, 0.3)",
-    marginTop: theme.spacing.small,
+    borderRadius: radius.lg,
+    borderColor: colors.borderStrong,
+    marginTop: space[2],
   },
   inlineButtons: {
     flexDirection: "row",
-    gap: 10,
+    gap: space[3],
   },
   inlineButton: {
     flex: 1,
   },
   supportText: {
-    color: "rgba(244, 243, 238, 0.74)",
+    ...type.caption,
+    fontSize: 13,
     lineHeight: 18,
-    marginBottom: theme.spacing.medium,
+    color: colors.inkMuted,
+    marginBottom: space[4],
   },
   statusText: {
-    color: theme.colors.text,
-    marginTop: theme.spacing.small,
+    ...type.caption,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginTop: space[2],
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: space[3],
   },
   rowIcon: {
     width: 34,
     height: 34,
-    borderRadius: 17,
-    backgroundColor: theme.colors.secondary,
+    borderRadius: radius.full,
+    backgroundColor: colors.accentSoft,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: space[3],
   },
   rowText: {
     flex: 1,
   },
   rowTitle: {
-    color: theme.colors.text,
+    ...type.bodyStrong,
     fontSize: 15,
-    fontWeight: "600",
+    color: colors.ink,
     marginBottom: 2,
   },
   rowDescription: {
-    color: "rgba(244, 243, 238, 0.68)",
-    fontSize: 12,
-    lineHeight: 16,
+    ...type.caption,
+    color: colors.inkMuted,
   },
   snapshotValue: {
-    color: theme.colors.text,
-    fontSize: 16,
+    ...type.bodyStrong,
     fontWeight: "700",
-    marginBottom: theme.spacing.small,
+    color: colors.ink,
+    marginBottom: space[2],
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    backgroundColor: colors.scrim,
     justifyContent: "center",
     alignItems: "center",
-    padding: theme.spacing.large,
+    padding: space[6],
   },
   modalCard: {
     width: "100%",
     maxWidth: 360,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.large,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space[6],
     alignItems: "center",
   },
   dateModalCard: {
     width: "100%",
     maxWidth: 360,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.large,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space[6],
   },
   modalTitle: {
-    color: theme.colors.background,
+    ...type.sectionTitle,
     fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 8,
+    lineHeight: 28,
+    color: colors.ink,
+    marginBottom: space[2],
   },
   modalText: {
-    color: "rgba(38, 12, 26, 0.72)",
-    textAlign: "center",
+    ...type.caption,
+    fontSize: 13,
     lineHeight: 18,
-    marginBottom: theme.spacing.medium,
+    color: colors.inkMuted,
+    textAlign: "center",
+    marginBottom: space[4],
   },
+  // QR codes stay black on white in both themes so every scanner can read them.
   qrWrap: {
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     padding: 14,
-    borderRadius: theme.roundness * 2,
+    borderRadius: radius.md,
   },
   modalToken: {
-    color: theme.colors.background,
-    marginTop: theme.spacing.medium,
+    ...type.caption,
+    color: colors.inkMuted,
+    marginTop: space[4],
     textAlign: "center",
   },
   modalClose: {
-    marginTop: theme.spacing.large,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    marginTop: space[6],
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    minHeight: size.touchTarget,
+    justifyContent: "center",
+    paddingHorizontal: space[6],
   },
   modalCloseText: {
-    color: theme.colors.text,
-    fontWeight: "700",
+    ...type.bodyStrong,
+    color: colors.onPrimary,
   },
   dateModalButton: {
     flex: 1,
-    borderRadius: theme.roundness * 3,
-  },
-  dateModalPrimary: {
-    backgroundColor: theme.colors.primary,
+    borderRadius: radius.lg,
   },
   dateModalSecondary: {
-    borderColor: "rgba(38, 12, 26, 0.2)",
+    borderColor: colors.borderStrong,
   },
 });

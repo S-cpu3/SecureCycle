@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from "react";
-import { Alert, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from "react-native";
+import { Alert, StyleProp, Text, TextInput, View, ViewStyle } from "react-native";
 import { Button } from "react-native-paper";
 import { useFocusEffect } from "expo-router";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { makeSecurityCardStyles } from "@/components/securityCardStyles";
 import { useDatabase } from "@/hooks/use-database";
 import { ensurePrimaryUser, hasUsablePin, verifyUserPin } from "@/dao/userDao";
 import { setBiometricEnabled } from "@/dao/securityDao";
@@ -30,6 +31,8 @@ function confirmDestructive(message: string) {
  */
 export default function DuressPinCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeSecurityCardStyles);
   const [userId, setUserId] = useState<number | null>(null);
   const [hasPin, setHasPin] = useState(false);
   const [config, setConfig] = useState<DuressConfig>({ isSet: false, action: null });
@@ -104,7 +107,7 @@ export default function DuressPinCard({ style }: { style?: StyleProp<ViewStyle> 
     Alert.alert("Removed", "The duress PIN has been removed.");
   };
 
-  const placeholderColor = "rgba(244, 243, 238, 0.45)";
+  const placeholderColor = colors.inkSubtle;
 
   return (
     <View style={[styles.card, style]}>
@@ -125,6 +128,7 @@ export default function DuressPinCard({ style }: { style?: StyleProp<ViewStyle> 
           <View style={styles.row}>
             <Button
               mode={action === "decoy" ? "contained" : "outlined"}
+              textColor={action === "decoy" ? colors.onPrimary : colors.ink}
               onPress={() => setAction("decoy")}
               style={styles.rowButton}
             >
@@ -132,6 +136,7 @@ export default function DuressPinCard({ style }: { style?: StyleProp<ViewStyle> 
             </Button>
             <Button
               mode={action === "wipe" ? "contained" : "outlined"}
+              textColor={action === "wipe" ? colors.onPrimary : colors.ink}
               onPress={() => setAction("wipe")}
               style={styles.rowButton}
             >
@@ -147,7 +152,12 @@ export default function DuressPinCard({ style }: { style?: StyleProp<ViewStyle> 
             {config.isSet ? "Replace duress PIN" : "Save duress PIN"}
           </Button>
           {config.isSet ? (
-            <Button mode="outlined" onPress={handleRemove} style={styles.button}>
+            <Button
+              mode="outlined"
+              onPress={handleRemove}
+              textColor={colors.danger}
+              style={[styles.button, { borderColor: colors.danger }]}
+            >
               Remove duress PIN
             </Button>
           ) : null}
@@ -156,27 +166,3 @@ export default function DuressPinCard({ style }: { style?: StyleProp<ViewStyle> 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    padding: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    marginTop: theme.spacing.medium,
-  },
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginBottom: 6 },
-  body: { color: "rgba(244, 243, 238, 0.75)", lineHeight: 18, marginBottom: theme.spacing.small },
-  status: { color: theme.colors.text, marginBottom: theme.spacing.small },
-  row: { flexDirection: "row", gap: 8, marginBottom: theme.spacing.small },
-  rowButton: { flex: 1 },
-  input: {
-    color: theme.colors.text,
-    borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.25)",
-    borderRadius: theme.roundness * 2,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: theme.spacing.small,
-  },
-  button: { marginTop: theme.spacing.small },
-});

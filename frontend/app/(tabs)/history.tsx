@@ -3,8 +3,10 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, Text } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Entypo from "@expo/vector-icons/Entypo";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "expo-router";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { cardShadow, ColorScheme, Palette, radius, size, space, type } from "@/theme/tokens";
 import { useDatabase } from "@/hooks/use-database";
 import {
   CalendarDayState,
@@ -53,6 +55,8 @@ function toKey(date: Date) {
 
 export default function History() {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const today = startOfDay(new Date());
 
   // State: visible month, selected start date, flow length, calendar coloring, and saved periods list.
@@ -123,7 +127,7 @@ export default function History() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Cycle Calendar</Text>
+        <Text style={styles.title}>Cycle calendar</Text>
         <Text style={styles.subtitle}>Tap a day, choose flow length, then save it.</Text>
 
         {/* Period logger: tap a start date, pick flow length (3–7 days), then save */}
@@ -136,6 +140,10 @@ export default function History() {
               {[3, 4, 5, 6, 7].map((length) => (
                 <Pressable
                   key={length}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: periodLength === length }}
+                  accessibilityLabel={`${length} days`}
+                  hitSlop={4}
                   onPress={() => setPeriodLength(length)}
                   style={[styles.lengthChip, periodLength === length && styles.lengthChipActive]}
                 >
@@ -154,12 +162,12 @@ export default function History() {
 
         {/* Calendar navigation: prev/next month arrows with the current month label */}
         <View style={styles.navigationRow}>
-          <Pressable onPress={() => setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() - 1, 1))} style={styles.navButton}>
-            <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
+          <Pressable onPress={() => setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() - 1, 1))} style={styles.navButton} accessibilityRole="button" accessibilityLabel="Previous month" hitSlop={4}>
+            <Ionicons name="chevron-back" size={size.iconSm} color={colors.ink} />
           </Pressable>
           <Text style={styles.monthLabel}>{monthLabel}</Text>
-          <Pressable onPress={() => setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + 1, 1))} style={styles.navButton}>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.text} />
+          <Pressable onPress={() => setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + 1, 1))} style={styles.navButton} accessibilityRole="button" accessibilityLabel="Next month" hitSlop={4}>
+            <Ionicons name="chevron-forward" size={size.iconSm} color={colors.ink} />
           </Pressable>
         </View>
 
@@ -183,10 +191,30 @@ export default function History() {
             const isToday = key === toKey(today);
             const isSelected = selectedStart ? key === toKey(selectedStart) : false;
 
+            const kindLabel =
+              dayState?.kind === "period"
+                ? ", period day"
+                : dayState?.kind === "fertile"
+                  ? ", predicted fertile day"
+                  : dayState?.kind === "ovulation"
+                    ? ", predicted ovulation"
+                    : "";
+            const textColor =
+              dayState?.kind === "period"
+                ? colors.onPhasePeriod
+                : dayState?.kind === "fertile"
+                  ? colors.onPhaseFertile
+                  : dayState?.kind === "ovulation"
+                    ? colors.onPhaseOvulation
+                    : colors.ink;
+
             return (
               <Pressable
                 key={key}
                 onPress={() => setSelectedStart(cell)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`${cell.toLocaleDateString("en-US", { month: "long", day: "numeric" })}${kindLabel}${isToday ? ", today" : ""}`}
                 style={[
                   styles.dayCell,
                   dayState?.kind === "period" && styles.periodDayCell,
@@ -196,11 +224,14 @@ export default function History() {
                   isSelected && styles.selectedDayCell,
                 ]}
               >
-                <Text style={styles.dayText}>{cell.getDate()}</Text>
-                {dayState?.kind === "period" ? (
-                  <Entypo name="drop" size={12} color={theme.colors.text} />
+                <Text style={[styles.dayText, { color: textColor }]}>{cell.getDate()}</Text>
+                {dayState?.kind === "period" ? <Entypo name="drop" size={11} color={textColor} /> : null}
+                {dayState?.kind === "fertile" ? (
+                  <MaterialCommunityIcons name="star-four-points" size={11} color={textColor} />
                 ) : null}
-                {dayState?.kind === "ovulation" ? <Text style={styles.ovulationBadgeText}>O</Text> : null}
+                {dayState?.kind === "ovulation" ? (
+                  <MaterialCommunityIcons name="target" size={11} color={textColor} />
+                ) : null}
               </Pressable>
             );
           })}
@@ -209,15 +240,21 @@ export default function History() {
         {/* Legend: colour key for period, fertile, and ovulation day cells */}
         <View style={styles.legendContainer}>
           <View style={styles.legendRow}>
-            <Entypo name="drop" size={14} color={theme.colors.text} />
+            <View style={[styles.legendSwatch, { backgroundColor: colors.phasePeriod }]}>
+              <Entypo name="drop" size={12} color={colors.onPhasePeriod} />
+            </View>
             <Text style={styles.legendText}>Period</Text>
           </View>
           <View style={styles.legendRow}>
-            <View style={styles.legendFertileDot} />
+            <View style={[styles.legendSwatch, { backgroundColor: colors.phaseFertile }]}>
+              <MaterialCommunityIcons name="star-four-points" size={12} color={colors.onPhaseFertile} />
+            </View>
             <Text style={styles.legendText}>Fertile</Text>
           </View>
           <View style={styles.legendRow}>
-            <Text style={styles.legendOvulationDotText}>O</Text>
+            <View style={[styles.legendSwatch, { backgroundColor: colors.phaseOvulation }]}>
+              <MaterialCommunityIcons name="target" size={12} color={colors.onPhaseOvulation} />
+            </View>
             <Text style={styles.legendText}>Ovulation</Text>
           </View>
         </View>
@@ -253,188 +290,181 @@ export default function History() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, scheme: ColorScheme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   contentContainer: {
-    paddingHorizontal: theme.spacing.medium,
-    paddingTop: theme.spacing.large,
-    paddingBottom: theme.spacing.large,
+    paddingHorizontal: space[4],
+    paddingTop: space[6],
+    paddingBottom: space[8],
   },
   title: {
-    color: theme.colors.text,
-    fontSize: 26,
-    fontWeight: "700",
-    marginBottom: 4,
+    ...type.screenTitle,
+    color: colors.ink,
+    marginBottom: space[1],
   },
   subtitle: {
-    color: "rgba(244, 243, 238, 0.72)",
-    marginBottom: theme.spacing.medium,
+    ...type.body,
+    color: colors.inkMuted,
+    marginBottom: space[4],
   },
   inputCard: {
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderRadius: theme.roundness * 3,
-    marginBottom: theme.spacing.large,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    marginBottom: space[6],
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.1)",
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   sectionTitle: {
-    color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: theme.spacing.small,
+    ...type.cardTitle,
+    color: colors.ink,
+    marginBottom: space[2],
   },
   selectionText: {
-    color: theme.colors.text,
-    marginBottom: theme.spacing.medium,
+    ...type.body,
+    color: colors.ink,
+    marginBottom: space[4],
   },
   lengthRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.medium,
+    marginBottom: space[4],
   },
   lengthChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 999,
+    minHeight: 40,
+    justifyContent: "center",
+    paddingHorizontal: space[3],
+    borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.16)",
-    backgroundColor: "rgba(38, 12, 26, 0.35)",
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceRaised,
   },
   lengthChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   lengthChipText: {
-    color: theme.colors.text,
-    fontWeight: "600",
+    ...type.label,
+    color: colors.ink,
   },
   lengthChipTextActive: {
-    color: theme.colors.text,
+    color: colors.onPrimary,
   },
   saveButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.roundness * 3,
+    borderRadius: radius.lg,
   },
   navigationRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.small,
+    marginBottom: space[2],
   },
   navButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(244,243,238,0.15)",
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   monthLabel: {
-    color: theme.colors.text,
-    fontSize: 20,
-    fontWeight: "700",
+    ...type.sectionTitle,
+    color: colors.ink,
   },
   weekHeaderRow: {
     flexDirection: "row",
-    marginBottom: theme.spacing.small,
+    marginBottom: space[2],
   },
   weekHeaderText: {
+    ...type.caption,
+    fontWeight: "600",
     width: `${100 / 7}%`,
     textAlign: "center",
-    color: "rgba(244, 243, 238, 0.7)",
-    fontSize: 12,
+    color: colors.inkMuted,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: theme.spacing.medium,
+    marginBottom: space[4],
   },
   dayCell: {
     width: `${100 / 7}%`,
     aspectRatio: 1,
-    borderRadius: theme.roundness,
-    borderWidth: 1,
-    borderColor: "rgba(244,243,238,0.08)",
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    marginBottom: 4,
+    gap: 2,
+    marginBottom: space[1],
   },
   dayText: {
-    color: theme.colors.text,
     fontSize: 15,
     fontWeight: "600",
+    fontVariant: ["tabular-nums"],
   },
   currentDayCell: {
-    borderColor: theme.colors.secondary,
+    borderColor: colors.focus,
   },
   selectedDayCell: {
-    borderColor: theme.colors.text,
-    borderWidth: 2,
+    borderColor: colors.ink,
   },
   periodDayCell: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
+    backgroundColor: colors.phasePeriod,
   },
   fertileDayCell: {
-    backgroundColor: "rgba(219, 69, 123, 0.24)",
-    borderColor: "rgba(219, 69, 123, 0.4)",
+    backgroundColor: colors.phaseFertile,
   },
   ovulationDayCell: {
-    backgroundColor: theme.colors.secondary,
-    borderColor: theme.colors.secondary,
-  },
-  ovulationBadgeText: {
-    color: theme.colors.background,
-    fontWeight: "800",
-    fontSize: 12,
+    backgroundColor: colors.phaseOvulation,
   },
   legendContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.large,
+    marginBottom: space[6],
   },
   legendRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: space[2],
+  },
+  legendSwatch: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
   },
   legendText: {
-    color: theme.colors.text,
-    fontSize: 12,
-  },
-  legendFertileDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "rgba(219, 69, 123, 0.7)",
-  },
-  legendOvulationDotText: {
-    color: theme.colors.secondary,
-    fontWeight: "800",
-    width: 12,
-    textAlign: "center",
+    ...type.label,
+    color: colors.inkMuted,
   },
   historyCard: {
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    borderRadius: theme.roundness * 3,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.1)",
+    borderColor: colors.border,
+    ...cardShadow(scheme),
   },
   historyRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
+    paddingVertical: space[3],
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(244,243,238,0.08)",
+    borderBottomColor: colors.border,
   },
   historyText: {
-    color: theme.colors.text,
+    ...type.body,
+    color: colors.ink,
   },
   historyCount: {
-    color: "rgba(244, 243, 238, 0.72)",
+    ...type.body,
+    color: colors.inkMuted,
+    fontVariant: ["tabular-nums"],
   },
 });

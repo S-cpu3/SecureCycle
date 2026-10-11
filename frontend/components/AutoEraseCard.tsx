@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from "react";
-import { Alert, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from "react-native";
+import { Alert, StyleProp, Text, TextInput, View, ViewStyle } from "react-native";
 import { Button } from "react-native-paper";
 import { useFocusEffect } from "expo-router";
-import { theme } from "@/theme/theme";
+import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
+import { makeSecurityCardStyles } from "@/components/securityCardStyles";
 import { useDatabase } from "@/hooks/use-database";
 import { ensurePrimaryUser, hasUsablePin, verifyUserPin } from "@/dao/userDao";
 import {
@@ -36,6 +37,8 @@ function labelForDays(days: number | null) {
 /** Settings card for "erase my data if the app isn't unlocked for a while". Off by default. */
 export default function AutoEraseCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeSecurityCardStyles);
   const [userId, setUserId] = useState<number | null>(null);
   const [hasPin, setHasPin] = useState(false);
   const [settings, setSettings] = useState<AutoEraseSettings>({ days: null, lastUnlockedAt: null, autoErasedAt: null });
@@ -111,6 +114,7 @@ export default function AutoEraseCard({ style }: { style?: StyleProp<ViewStyle> 
               <Button
                 key={option.label}
                 mode={choice === option.days ? "contained" : "outlined"}
+                textColor={choice === option.days ? colors.onPrimary : colors.ink}
                 onPress={() => setChoice(option.days)}
                 style={styles.optionButton}
                 compact
@@ -120,11 +124,17 @@ export default function AutoEraseCard({ style }: { style?: StyleProp<ViewStyle> 
             ))}
           </View>
 
+          {choice !== null ? (
+            <Text style={styles.warning}>
+              If SecureCycle isn't unlocked for {labelForDays(choice)}, everything is erased. This cannot be undone.
+            </Text>
+          ) : null}
+
           <TextInput
             value={currentPin}
             onChangeText={setCurrentPin}
             placeholder="Current PIN"
-            placeholderTextColor="rgba(244, 243, 238, 0.45)"
+            placeholderTextColor={colors.inkSubtle}
             keyboardType="number-pad"
             maxLength={6}
             secureTextEntry
@@ -138,27 +148,3 @@ export default function AutoEraseCard({ style }: { style?: StyleProp<ViewStyle> 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    padding: theme.spacing.medium,
-    borderRadius: theme.roundness * 3,
-    backgroundColor: "rgba(244, 243, 238, 0.08)",
-    marginTop: theme.spacing.medium,
-  },
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginBottom: 6 },
-  body: { color: "rgba(244, 243, 238, 0.75)", lineHeight: 18, marginBottom: theme.spacing.small },
-  status: { color: theme.colors.text, marginBottom: theme.spacing.small },
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: theme.spacing.small },
-  optionButton: { minWidth: 90 },
-  input: {
-    color: theme.colors.text,
-    borderWidth: 1,
-    borderColor: "rgba(244, 243, 238, 0.25)",
-    borderRadius: theme.roundness * 2,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: theme.spacing.small,
-  },
-  button: { marginTop: theme.spacing.small },
-});
