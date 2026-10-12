@@ -4,7 +4,6 @@ SecureCycle is a privacy and security focused general health app designed to hel
 
 All data is processed locally on your device and can be protected with an app PIN. No one, not even us, can access your health data. Privacy is a fundamental human right, not an option.
 
-Protecting your data
 **App PIN** - You can protect the app with a 6-digit PIN. The PIN is optional, and we strongly recommend setting one. Without a PIN, anyone who can open your phone can open the app.
 
 **Brute Force Protection** - Each wrong PIN adds a longer wait before the next attempt. The waits grow to a maximum of 24 hours.
