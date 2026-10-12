@@ -4,6 +4,17 @@ SecureCycle is a privacy and security focused general health app designed to hel
 
 All data is processed locally on your device and can be protected with an app PIN. No one, not even us, can access your health data. Privacy is a fundamental human right, not an option.
 
+Protecting your data
+**App PIN** - You can protect the app with a 6-digit PIN. The PIN is optional, and we strongly recommend setting one. Without a PIN, anyone who can open your phone can open the app.
+
+**Brute Force Protection** - Each wrong PIN adds a longer wait before the next attempt. The waits grow to a maximum of 24 hours.
+
+**Auto-lock** - The app locks when it leaves the foreground.
+
+**Erase options** - You can choose to erase your data after a set number of wrong PINs, or after the app has not been unlocked for a period you choose (1 week to 6 months).
+
+**Duress PIN** - set a second PIN that opens a harmless screen instead of your data. Use it only if you are forced to unlock the app.
+
 ## Technologies:
 - Frontend: [React Native + Expo](https://react.dev/#:~:text=React%20Native%20and%20Expo%20let%20you%20build%20apps%20in%20React%20for%20Android%2C%20iOS%2C%20and%20more.)
 
