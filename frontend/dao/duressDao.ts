@@ -105,10 +105,9 @@ export async function checkDuressPin(
  */
 export async function wipeUserData(db: SQLite.SQLiteDatabase) {
   await db.execAsync("PRAGMA secure_delete = ON;");
-  await db.withTransactionAsync(async () => {
-    await db.execAsync("DELETE FROM Entries; DELETE FROM Cycles; DELETE FROM WellnessCheckIns;");
-    await db.execAsync(`UPDATE Users SET first_name = '', last_name = '', birth_date = '';`);
-    await db.execAsync(`UPDATE SecuritySettings SET qr_share_token = NULL, qr_last_generated_at = NULL;`);
+  await db.execAsync("DELETE FROM Entries; DELETE FROM Cycles; DELETE FROM WellnessCheckIns;");
+  await db.execAsync(`UPDATE Users SET first_name = '', last_name = '', birth_date = '';`);
+  await db.execAsync(`UPDATE SecuritySettings SET qr_share_token = NULL, qr_last_generated_at = NULL;`);
   });
 
   try {
