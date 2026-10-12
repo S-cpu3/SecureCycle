@@ -532,7 +532,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   submitButton: {
     marginTop: space[2],
-    width: "100%",
+    width: "80%",
     maxWidth: 320,
     borderRadius: radius.lg,
   },
