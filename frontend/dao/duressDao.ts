@@ -108,7 +108,20 @@ export async function wipeUserData(db: SQLite.SQLiteDatabase) {
   await db.execAsync("DELETE FROM Entries; DELETE FROM Cycles; DELETE FROM WellnessCheckIns;");
   await db.execAsync(`UPDATE Users SET first_name = '', last_name = '', birth_date = '';`);
   await db.execAsync(`UPDATE SecuritySettings SET qr_share_token = NULL, qr_last_generated_at = NULL;`);
-  });
+
+  try {
+    await db.execAsync("VACUUM;");
+  } catch (error) {
+    console.error("VACUUM after wipe failed; rows were deleted but pages were not compacted", error);
+  }
+
+  // In WAL mode the old rows can survive in the -wal file even after VACUUM.
+  try {
+    await db.execAsync("PRAGMA wal_checkpoint(TRUNCATE);");
+  } catch (error) {
+    console.error("WAL checkpoint after wipe failed", error);
+  }
+}
 
   try {
     await db.execAsync("VACUUM;");
