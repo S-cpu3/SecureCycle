@@ -123,21 +123,6 @@ export async function wipeUserData(db: SQLite.SQLiteDatabase) {
   }
 }
 
-  try {
-    await db.execAsync("VACUUM;");
-  } catch (error) {
-    console.error("VACUUM after wipe failed; rows were deleted but pages were not compacted", error);
-  }
-
-  // In WAL mode the old rows can survive in the -wal file even after VACUUM.
-  // Checkpointing and truncating it removes them. Harmless in other journal modes.
-  try {
-    await db.execAsync("PRAGMA wal_checkpoint(TRUNCATE);");
-  } catch (error) {
-    console.error("WAL checkpoint after wipe failed", error);
-  }
-}
-
 export const WIPE_THRESHOLD_CHOICES = [10, 15, 20] as const;
 
 export async function getWipeThreshold(db: SQLite.SQLiteDatabase, userId: number): Promise<number | null> {
