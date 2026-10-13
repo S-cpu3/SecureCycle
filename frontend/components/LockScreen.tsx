@@ -227,7 +227,6 @@ export default function LockScreen() {
       // alert, same animation. If anything below throws, fall through and treat
       // it as a wrong PIN rather than showing an error that gives it away.
       try {
-        await clearFailedPinAttempts(db, userId);
 
         if (duressAction === "wipe") {
           try {
