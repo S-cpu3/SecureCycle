@@ -1,6 +1,6 @@
 <img width="915" height="933" alt="image" src="https://github.com/user-attachments/assets/84ce07e8-3dce-450a-8109-ab1689dbb520" />
 
-SecureCycle is a privacy and security focused general health app for iOS and Android designed to help you store sensitive health information including medical conditions, diagnoses, medications, allergies, doctor’s appointments, mental help information, treatment notes, and reproductive health information. There are no trackers, ads in our app or creepy AI that trains off your private health information. 
+SecureCycle is a privacy and security focused general health app for iOS and Android designed to help you store sensitive health information including medical conditions, diagnoses, medications, allergies, doctor’s appointments, mental help information, treatment notes, and reproductive health information. There are no trackers, ads and  creepy AI that trains off your private health information. 
 
 All data is processed locally on your device and can be protected with an app PIN. No one, not even us, can access your health data. Privacy is a fundamental human right, not an option.
 
@@ -38,9 +38,9 @@ All data is processed locally on your device and can be protected with an app PI
     ```
 6) Download the Expo Go app on your phone and scan the QR code on your screen! You will now be able to use SecureCycle!
 
- https://apps.apple.com/us/app/expo-go/id982107779
+[iOS Download](https://apps.apple.com/us/app/expo-go/id982107779) 
  
- https://play.google.com/store/apps/details?id=host.exp.exponent
+[Andriod Download](https://play.google.com/store/apps/details?id=host.exp.exponent)  
 
 ### Backend
 1) Ensure you have set up your vitrual python environment `python -m venv .venv`
