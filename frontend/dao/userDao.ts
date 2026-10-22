@@ -24,7 +24,9 @@ type ProfileInput = {
   birthDate: string;
 };
 
-export async function getPrimaryUser(db: SQLite.SQLiteDatabase) {
+export async function getPrimaryUser(
+  db: SQLite.SQLiteDatabase
+) {
   return db.getFirstAsync<UserProfile>(
     `SELECT
        user_id,
@@ -41,7 +43,9 @@ export async function getPrimaryUser(db: SQLite.SQLiteDatabase) {
   );
 }
 
-export async function ensurePrimaryUser(db: SQLite.SQLiteDatabase) {
+export async function ensurePrimaryUser(
+  db: SQLite.SQLiteDatabase
+) {
   const existingUser = await getPrimaryUser(db);
 
   if (existingUser) {
@@ -67,7 +71,7 @@ export async function ensurePrimaryUser(db: SQLite.SQLiteDatabase) {
   const user = await getPrimaryUser(db);
 
   if (!user) {
-    throw new Error("Unable to create demo user");
+    throw new Error("Unable to create demo user.");
   }
 
   return user;
@@ -94,14 +98,14 @@ export async function updateUserProfile(
 }
 
 /**
- * Creates and stores a new PBKDF2 PIN verifier.
+ * Creates a new PBKDF2 PIN verifier and saves it.
  */
 export async function updateUserPin(
   db: SQLite.SQLiteDatabase,
   userId: number,
   pin: string
-) {
-  // IMPORTANT: await the asynchronous salt generator.
+): Promise<void> {
+  // IMPORTANT: await the salt generator before hashing or saving it.
   const pinSalt = await createPinSalt();
   const pinHash = await hashPin(pin, pinSalt);
 
@@ -116,8 +120,7 @@ export async function updateUserPin(
 /**
  * Verifies the user's PIN.
  *
- * Existing valid legacy PINs are upgraded to PBKDF2 after
- * successful verification. Invalid PINs are never migrated.
+ * Valid legacy PINs are migrated to PBKDF2 after successful verification.
  */
 export async function verifyUserPin(
   db: SQLite.SQLiteDatabase,
@@ -129,25 +132,24 @@ export async function verifyUserPin(
     return false;
   }
 
-  // Reject records with a known-broken legacy hash.
   if (isLegacyBrokenHash(user.pin_hash)) {
     return false;
   }
 
-  // Verify a PIN already stored using PBKDF2.
+  // New PBKDF2 PIN record.
   if (isPbkdf2Salt(user.pin_salt)) {
     const candidateHash = await hashPin(pin, user.pin_salt);
     return candidateHash === user.pin_hash;
   }
 
-  // Verify a PIN stored in the previous legacy format.
+  // Legacy PIN record: verify using the previous format.
   const legacyHash = hashLegacyPin(pin, user.pin_salt);
 
   if (legacyHash !== user.pin_hash) {
     return false;
   }
 
-  // Upgrade the hash only after the legacy PIN is verified.
+  // Migrate only after the legacy PIN has been verified.
   const newSalt = await createPinSalt();
   const newHash = await hashPin(pin, newSalt);
 
@@ -162,11 +164,11 @@ export async function verifyUserPin(
 }
 
 /**
- * Used by the lock screen and profile screen to check whether
- * a PIN hash is present and not known to be broken.
+ * Indicates whether a PIN hash is present and not known to be broken.
  */
 export function hasUsablePin(
   user: Pick<UserProfile, "pin_hash">
 ): boolean {
   return Boolean(user.pin_hash) && !isLegacyBrokenHash(user.pin_hash);
 }
+```
