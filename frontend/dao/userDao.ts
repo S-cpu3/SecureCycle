@@ -1,5 +1,11 @@
 import * as SQLite from "expo-sqlite";
-import { createPinSalt, hashPin, isLegacyBrokenHash } from "@/utils/hash";
+import {
+  createPinSalt,
+  hashPin,
+  hashLegacyPin,
+  isLegacyBrokenHash,
+  isPbkdf2Salt,
+} from "@/utils/hash";
 
 export type UserProfile = {
   user_id: number;
@@ -60,15 +66,24 @@ export async function updateUserProfile(
     `UPDATE Users
      SET first_name = ?, last_name = ?, birth_date = ?
      WHERE user_id = ?`,
-    [input.firstName.trim(), input.lastName.trim(), input.birthDate.trim(), userId]
+    [
+      input.firstName.trim(),
+      input.lastName.trim(),
+      input.birthDate.trim(),
+      userId,
+    ]
   );
 
   return getPrimaryUser(db);
 }
 
-export async function updateUserPin(db: SQLite.SQLiteDatabase, userId: number, pin: string) {
+export async function updateUserPin(
+  db: SQLite.SQLiteDatabase,
+  userId: number,
+  pin: string
+) {
   const pinSalt = createPinSalt();
-  const pinHash = hashPin(pin, pinSalt);
+  const pinHash = await hashPin(pin, pinSalt);
 
   await db.runAsync(
     `UPDATE Users
@@ -78,18 +93,50 @@ export async function updateUserPin(db: SQLite.SQLiteDatabase, userId: number, p
   );
 }
 
-export async function verifyUserPin(db: SQLite.SQLiteDatabase, pin: string) {
+export async function verifyUserPin(
+  db: SQLite.SQLiteDatabase,
+  pin: string
+) {
   const user = await ensurePrimaryUser(db);
 
-  // FIX: a hash left over from the old, broken sha256
-  if (!user.pin_hash || !user.pin_salt || isLegacyBrokenHash(user.pin_hash)) {
+  if (!user.pin_hash || !user.pin_salt) {
     return false;
   }
 
-  return user.pin_hash === hashPin(pin, user.pin_salt);
+  // Reject hashes left over from the old broken SHA-256 implementation.
+  if (isLegacyBrokenHash(user.pin_hash)) {
+    return false;
+  }
+
+  // Verify an existing PBKDF2 PIN.
+  if (isPbkdf2Salt(user.pin_salt)) {
+    const candidateHash = await hashPin(pin, user.pin_salt);
+    return candidateHash === user.pin_hash;
+  }
+
+  // Verify a valid PIN created by the previous legacy implementation.
+  const legacyHash = hashLegacyPin(pin, user.pin_salt);
+
+  if (legacyHash !== user.pin_hash) {
+    return false;
+  }
+
+  // Upgrade the stored PIN to PBKDF2 after successful legacy verification.
+  const newSalt = createPinSalt();
+  const newHash = await hashPin(pin, newSalt);
+
+  await db.runAsync(
+    `UPDATE Users
+     SET pin_hash = ?, pin_salt = ?
+     WHERE user_id = ?`,
+    [newHash, newSalt, user.user_id]
+  );
+
+  return true;
 }
 
-//LockScreen, profile.tsx) should treat both as "this device needs a PIN".
+// LockScreen and profile.tsx can use this to determine whether the device
+// has a usable PIN configured.
 export function hasUsablePin(user: Pick<UserProfile, "pin_hash">) {
   return Boolean(user.pin_hash) && !isLegacyBrokenHash(user.pin_hash);
 }
