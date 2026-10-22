@@ -13,25 +13,26 @@ const DERIVED_KEY_LENGTH = 32;
 const SALT_LENGTH_BYTES = 16;
 
 /**
- * SHA-256 retained for legacy PIN verification.
- * New PINs must use PBKDF2 instead.
+ * SHA-256 helper retained for legacy PIN verification.
+ * New PIN verifiers must use PBKDF2.
  */
 export function sha256(input: string): string {
   return bytesToHex(nobleSha256(utf8ToBytes(input)));
 }
 
 /**
- * Legacy PIN format: SHA-256(salt + ":" + PIN).
- * Used only to verify existing PIN records.
+ * Verifies the previous PIN format:
+ * SHA-256(salt + ":" + PIN).
  */
 export function hashLegacyPin(pin: string, salt: string): string {
   return sha256(`${salt}:${pin}`);
 }
 
 /**
- * Creates a cryptographically random salt for PBKDF2.
- * The returned string contains the algorithm, iteration count,
- * and random salt bytes encoded as hexadecimal.
+ * Generates a cryptographically random salt.
+ *
+ * Format:
+ * pbkdf2-sha256$600000$<32 hexadecimal characters>
  */
 export async function createPinSalt(): Promise<string> {
   const randomBytes = await Crypto.getRandomBytesAsync(SALT_LENGTH_BYTES);
@@ -44,34 +45,33 @@ export async function createPinSalt(): Promise<string> {
 }
 
 /**
- * Derives a PBKDF2-HMAC-SHA-256 PIN hash.
- *
- * The salt must be the string returned by createPinSalt()
- * or a valid stored PBKDF2 salt in the same format.
+ * Derives a PIN verifier using PBKDF2-HMAC-SHA-256.
  */
 export async function hashPin(
   pin: string,
   salt: string
 ): Promise<string> {
-  // Prevent "salt.split is not a function" when a Promise or
-  // another non-string value is accidentally passed.
+  if (typeof pin !== "string") {
+    throw new Error("Invalid PIN: expected a string.");
+  }
+
   if (typeof salt !== "string") {
     throw new Error(
       `Invalid PIN salt type: expected string, received ${typeof salt}. ` +
-        "Make sure createPinSalt() is called with await."
+        "Check that every createPinSalt() call uses await."
     );
   }
 
   const parts = salt.split("$");
 
   if (parts.length !== 3) {
-    throw new Error("Invalid PIN hashing format");
+    throw new Error("Invalid PIN hashing format.");
   }
 
   const [algorithm, iterationText, saltHex] = parts;
 
   if (algorithm !== PBKDF2_PREFIX) {
-    throw new Error("Unsupported PIN hashing format");
+    throw new Error("Unsupported PIN hashing format.");
   }
 
   const iterations = Number(iterationText);
@@ -81,7 +81,7 @@ export async function hashPin(
     iterations !== PBKDF2_ITERATIONS ||
     !/^[0-9a-f]{32}$/i.test(saltHex)
   ) {
-    throw new Error("Invalid PIN hashing parameters");
+    throw new Error("Invalid PIN hashing parameters.");
   }
 
   const derivedKey = await pbkdf2Async(
@@ -98,7 +98,8 @@ export async function hashPin(
 }
 
 /**
- * Returns true only for a valid salt in the supported PBKDF2 format.
+ * Returns true only when the stored salt matches our supported
+ * PBKDF2 format.
  */
 export function isPbkdf2Salt(
   salt: string | null | undefined
@@ -120,10 +121,11 @@ export function isPbkdf2Salt(
 }
 
 /**
- * Detects hashes known to be broken by the previous implementation.
+ * Identifies hashes known to be broken by an older implementation.
  */
 export function isLegacyBrokenHash(
   hash: string | null | undefined
 ): boolean {
   return Boolean(hash && hash.includes("NaN"));
 }
+```
