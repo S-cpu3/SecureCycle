@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
+import { Platform } from "react-native";
 
 const DB_KEY_NAME = "safecycle_db_key_v1";
 const DB_MIGRATED_FLAG = "safecycle_db_encrypted_v1";
@@ -100,8 +101,22 @@ async function openWithKey(name: string, key: string) {
 export async function openEncryptedDatabase(
   legacyName: string
 ): Promise<SQLite.SQLiteDatabase> {
+
+  // WEB ONLY: Use a separate browser database path.
+  // This does NOT provide SQLCipher encryption.
+  if (Platform.OS === "web") {
+    console.warn(
+      "[dbEncryption] Web preview is not encrypted with SQLCipher. " +
+      "Do not use it for real sensitive health data."
+    );
+
+    return SQLite.openDatabaseAsync(legacyName);
+  }
+
+  // NATIVE ONLY: Continue with SQLCipher and secure key storage.
   const key = await getOrCreateDbKey();
-  const alreadyMigrated = (await SecureStore.getItemAsync(DB_MIGRATED_FLAG)) === "true";
+  const alreadyMigrated =
+    (await SecureStore.getItemAsync(DB_MIGRATED_FLAG)) === "true";
 
   // ---- Normal path: already encrypted -------------------------------------
   if (alreadyMigrated) {
