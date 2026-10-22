@@ -273,4 +273,3 @@ export async function hasUserData(
         counts.profile > 0)
   );
 }
-```
