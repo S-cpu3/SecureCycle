@@ -175,15 +175,19 @@ export async function openEncryptedDatabase(
     );
   }
 
-  // Verified. Now the plaintext copy can go.
-  await SQLite.deleteDatabaseAsync(legacyName).catch((error) => {
-    console.error(
-      `Encrypted copy verified, but deleting the old plaintext "${legacyName}" failed. ` +
-        "Remove it manually so health data is not left on disk unencrypted.",
-      error
-    );
-  });
+ // The encrypted copy has been opened, read, and checked against the
+// original database's row counts. Record success before deleting the
+// plaintext copy so a crash cannot trigger a fresh migration attempt.
+await SecureStore.setItemAsync(DB_MIGRATED_FLAG, "true");
 
-  await SecureStore.setItemAsync(DB_MIGRATED_FLAG, "true");
-  return encrypted;
+// Best-effort cleanup of the old plaintext database.
+await SQLite.deleteDatabaseAsync(legacyName).catch((error) => {
+  console.error(
+    `Encrypted copy verified, but deleting the old plaintext "${legacyName}" failed. ` +
+      "The encrypted database is active, but the old plaintext copy still needs cleanup.",
+    error
+  );
+});
+
+return encrypted;
 }
