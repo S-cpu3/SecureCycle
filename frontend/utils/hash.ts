@@ -1,157 +1,66 @@
 import * as Crypto from "expo-crypto";
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
 import { sha256 as nobleSha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex, hexToBytes, utf8ToBytes } from "@noble/hashes/utils.js";
+import {
+  bytesToHex,
+  hexToBytes,
+  utf8ToBytes,
+} from "@noble/hashes/utils.js";
 
 const PBKDF2_PREFIX = "pbkdf2-sha256";
 const PBKDF2_ITERATIONS = 600_000;
 const DERIVED_KEY_LENGTH = 32;
+const SALT_LENGTH_BYTES = 16;
 
-// Keep this legacy function to verify PINs saved by the previous version.
-// Do not use it to create new PIN verifiers.
-function rightRotate(value: number, amount: number) {
-  return (value >>> amount) | (value << (32 - amount));
+/**
+ * Standard SHA-256.
+ *
+ * Retained for compatibility with PINs stored by the previous version.
+ * Do not use plain SHA-256 to create new PIN verifiers.
+ */
+export function sha256(input: string): string {
+  return bytesToHex(nobleSha256(utf8ToBytes(input)));
 }
 
-function toHex(value: number) {
-  return value.toString(16).padStart(8, "0");
-}
-
-export function sha256(input: string) {
-  const words: number[] = [];
-  const message = unescape(encodeURIComponent(input));
-  const bitLength = message.length * 8;
-
-  const hash = [
-    0x6a09e667,
-    0xbb67ae85,
-    0x3c6ef372,
-    0xa54ff53a,
-    0x510e527f,
-    0x9b05688c,
-    0x1f83d9ab,
-    0x5be0cd19,
-  ];
-
-  const roundConstants = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-  ];
-
-  for (let index = 0; index < message.length; index += 1) {
-    const code = message.charCodeAt(index);
-    const wordIndex = index >> 2;
-    const shift = 24 - ((index % 4) * 8);
-    words[wordIndex] = (words[wordIndex] || 0) | (code << shift);
-  }
-
-  const terminatorIndex = message.length >> 2;
-  const terminatorShift = 24 - ((message.length % 4) * 8);
-  words[terminatorIndex] =
-    (words[terminatorIndex] || 0) | (0x80 << terminatorShift);
-
-  const totalWords = (((message.length + 8) >> 6) + 1) << 4;
-
-  for (let index = 0; index < totalWords; index += 1) {
-    words[index] = words[index] | 0;
-  }
-
-  words[totalWords - 1] = bitLength;
-
-  for (let offset = 0; offset < words.length; offset += 16) {
-    const schedule = words.slice(offset, offset + 16);
-
-    for (let index = 16; index < 64; index += 1) {
-      const s0 =
-        rightRotate(schedule[index - 15], 7) ^
-        rightRotate(schedule[index - 15], 18) ^
-        (schedule[index - 15] >>> 3);
-
-      const s1 =
-        rightRotate(schedule[index - 2], 17) ^
-        rightRotate(schedule[index - 2], 19) ^
-        (schedule[index - 2] >>> 10);
-
-      schedule[index] =
-        (schedule[index - 16] +
-          s0 +
-          schedule[index - 7] +
-          s1) >>>
-        0;
-    }
-
-    let [a, b, c, d, e, f, g, h] = hash;
-
-    for (let index = 0; index < 64; index += 1) {
-      const s1 =
-        rightRotate(e, 6) ^
-        rightRotate(e, 11) ^
-        rightRotate(e, 25);
-
-      const choice = (e & f) ^ (~e & g);
-
-      const temp1 =
-        (h + s1 + choice + roundConstants[index] + schedule[index]) >>> 0;
-
-      const s0 =
-        rightRotate(a, 2) ^
-        rightRotate(a, 13) ^
-        rightRotate(a, 22);
-
-      const majority = (a & b) ^ (a & c) ^ (b & c);
-      const temp2 = (s0 + majority) >>> 0;
-
-      h = g;
-      g = f;
-      f = e;
-      e = (d + temp1) >>> 0;
-      d = c;
-      c = b;
-      b = a;
-      a = (temp1 + temp2) >>> 0;
-    }
-
-    hash[0] = (hash[0] + a) >>> 0;
-    hash[1] = (hash[1] + b) >>> 0;
-    hash[2] = (hash[2] + c) >>> 0;
-    hash[3] = (hash[3] + d) >>> 0;
-    hash[4] = (hash[4] + e) >>> 0;
-    hash[5] = (hash[5] + f) >>> 0;
-    hash[6] = (hash[6] + g) >>> 0;
-    hash[7] = (hash[7] + h) >>> 0;
-  }
-
-  return hash.map(toHex).join("");
-}
-
-// Legacy format: SHA-256(salt + ":" + PIN).
-// Used only to verify existing records during migration.
-export function hashLegacyPin(pin: string, salt: string) {
+/**
+ * Legacy format: SHA-256(salt + ":" + PIN).
+ *
+ * Used only to verify existing PINs during migration.
+ */
+export function hashLegacyPin(pin: string, salt: string): string {
   return sha256(`${salt}:${pin}`);
 }
 
+/**
+ * Creates a cryptographically random salt for a new PBKDF2 PIN verifier.
+ * The returned string contains the algorithm, iteration count, and salt.
+ */
 export async function createPinSalt(): Promise<string> {
-  const randomBytes = await Crypto.getRandomBytesAsync(16);
+  const randomBytes = await Crypto.getRandomBytesAsync(SALT_LENGTH_BYTES);
 
-  return `${PBKDF2_PREFIX}$${PBKDF2_ITERATIONS}$${bytesToHex(randomBytes)}`;
+  return [
+    PBKDF2_PREFIX,
+    PBKDF2_ITERATIONS.toString(),
+    bytesToHex(randomBytes),
+  ].join("$");
 }
 
-export async function hashPin(pin: string, salt: string): Promise<string> {
-  const [algorithm, iterationText, saltHex] = salt.split("$");
+/**
+ * Derives a PBKDF2-HMAC-SHA-256 PIN verifier.
+ *
+ * The salt must be generated by createPinSalt().
+ */
+export async function hashPin(
+  pin: string,
+  salt: string
+): Promise<string> {
+  const parts = salt.split("$");
+
+  if (parts.length !== 3) {
+    throw new Error("Invalid PIN hashing format");
+  }
+
+  const [algorithm, iterationText, saltHex] = parts;
 
   if (algorithm !== PBKDF2_PREFIX) {
     throw new Error("Unsupported PIN hashing format");
@@ -161,9 +70,8 @@ export async function hashPin(pin: string, salt: string): Promise<string> {
 
   if (
     !Number.isSafeInteger(iterations) ||
-    iterations < 1 ||
-    iterations > PBKDF2_ITERATIONS ||
-    !/^[0-9a-f]{32}$/i.test(saltHex ?? "")
+    iterations !== PBKDF2_ITERATIONS ||
+    !/^[0-9a-f]{32}$/i.test(saltHex)
   ) {
     throw new Error("Invalid PIN hashing parameters");
   }
@@ -181,10 +89,33 @@ export async function hashPin(pin: string, salt: string): Promise<string> {
   return bytesToHex(derivedKey);
 }
 
-export function isPbkdf2Salt(salt: string | null | undefined) {
-  return Boolean(salt?.startsWith(`${PBKDF2_PREFIX}$`));
+/**
+ * Identifies salts that use the new PBKDF2 format.
+ */
+export function isPbkdf2Salt(
+  salt: string | null | undefined
+): boolean {
+  if (!salt) {
+    return false;
+  }
+
+  const parts = salt.split("$");
+
+  if (parts.length !== 3 || parts[0] !== PBKDF2_PREFIX) {
+    return false;
+  }
+
+  return (
+    parts[1] === PBKDF2_ITERATIONS.toString() &&
+    /^[0-9a-f]{32}$/i.test(parts[2])
+  );
 }
 
-export function isLegacyBrokenHash(hash: string | null | undefined) {
+/**
+ * Detects hashes known to be broken by the previous implementation.
+ */
+export function isLegacyBrokenHash(
+  hash: string | null | undefined
+): boolean {
   return Boolean(hash && hash.includes("NaN"));
 }
