@@ -21,7 +21,9 @@ Behaviour the README describes as an accepted risk, including the optional PIN, 
 
 Denial of service through normal use, and missing best-practice headers or configuration with no demonstrated security impact
 
-Social engineering of the maintainer or users
+Social engineering of the maintainer or users                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+                                                                                                                                   
+Backend vulnerabilities
 
 ## Supported versions
 
