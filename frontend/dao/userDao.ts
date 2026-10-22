@@ -171,4 +171,4 @@ export function hasUsablePin(
 ): boolean {
   return Boolean(user.pin_hash) && !isLegacyBrokenHash(user.pin_hash);
 }
-```
+````
