@@ -25,13 +25,14 @@ const DURESS_COLUMNS: [string, string][] = [
   ["duress_pin_salt", "TEXT"],
   ["duress_action", "TEXT"],
   ["wipe_after_attempts", "INTEGER"],
-  // Inactivity auto-erase (see dao/autoEraseDao.ts)
   ["auto_erase_days", "REAL"],
   ["last_unlocked_at", "TEXT"],
   ["auto_erased_at", "TEXT"],
 ];
 
-// Adds the duress columns to SecuritySettings if they are missing.
+/**
+ * Adds missing duress-related columns to older databases.
+ */
 export async function ensureDuressColumns(db: SQLite.SQLiteDatabase) {
   const columns = await db.getAllAsync<{ name: string }>(
     `PRAGMA table_info(SecuritySettings);`
@@ -55,7 +56,9 @@ async function getRow(db: SQLite.SQLiteDatabase, userId: number) {
   );
 }
 
-function asAction(value: string | null | undefined): DuressAction | null {
+function asAction(
+  value: string | null | undefined
+): DuressAction | null {
   return value === "decoy" || value === "wipe" ? value : null;
 }
 
@@ -72,13 +75,17 @@ export async function getDuressConfig(
   };
 }
 
+/**
+ * Creates and stores a new duress PIN verifier.
+ */
 export async function setDuressPin(
   db: SQLite.SQLiteDatabase,
   userId: number,
   pin: string,
   action: DuressAction
 ) {
-  const salt = createPinSalt();
+  // IMPORTANT: await the asynchronous salt generator.
+  const salt = await createPinSalt();
   const pinHash = await hashPin(pin, salt);
 
   await db.runAsync(
@@ -95,12 +102,19 @@ export async function clearDuressPin(
 ) {
   await db.runAsync(
     `UPDATE SecuritySettings
-     SET duress_pin_hash = NULL, duress_pin_salt = NULL, duress_action = NULL
+     SET duress_pin_hash = NULL,
+         duress_pin_salt = NULL,
+         duress_action = NULL
      WHERE user_id = ?`,
     [userId]
   );
 }
 
+/**
+ * Checks the duress PIN and returns its configured action if valid.
+ *
+ * A valid legacy duress PIN is upgraded to PBKDF2 after verification.
+ */
 export async function checkDuressPin(
   db: SQLite.SQLiteDatabase,
   userId: number,
@@ -118,22 +132,22 @@ export async function checkDuressPin(
     return null;
   }
 
-  // Verify a PIN stored using the new PBKDF2 format.
+  // Verify a PIN already stored using PBKDF2.
   if (isPbkdf2Salt(row.duress_pin_salt)) {
     const candidateHash = await hashPin(pin, row.duress_pin_salt);
 
     return candidateHash === row.duress_pin_hash ? action : null;
   }
 
-  // Check a PIN stored using the previous legacy hashing implementation.
+  // Verify a PIN stored using the previous legacy format.
   const legacyHash = hashLegacyPin(pin, row.duress_pin_salt);
 
   if (legacyHash !== row.duress_pin_hash) {
     return null;
   }
 
-  // Upgrade the legacy PIN only after successful verification.
-  const newSalt = createPinSalt();
+  // Upgrade the hash only after successful legacy verification.
+  const newSalt = await createPinSalt();
   const newHash = await hashPin(pin, newSalt);
 
   await db.runAsync(
@@ -147,18 +161,23 @@ export async function checkDuressPin(
 }
 
 /**
- * Irreversibly removes the user's cycle/wellness data and profile details.
- * The real PIN, duress PIN, and settings are kept so the app still looks
- * locked and normal.
+ * Deletes cycle and wellness records and clears profile details.
+ *
+ * This attempts to reduce leftover database data, but it cannot
+ * guarantee forensic destruction of every storage-device copy.
  */
 export async function wipeUserData(db: SQLite.SQLiteDatabase) {
   await db.execAsync("PRAGMA secure_delete = ON;");
+
   await db.execAsync(
     "DELETE FROM Entries; DELETE FROM Cycles; DELETE FROM WellnessCheckIns;"
   );
+
   await db.execAsync(
-    `UPDATE Users SET first_name = '', last_name = '', birth_date = '';`
+    `UPDATE Users
+     SET first_name = '', last_name = '', birth_date = '';`
   );
+
   await db.execAsync(
     `UPDATE SecuritySettings
      SET qr_share_token = NULL, qr_last_generated_at = NULL;`
@@ -168,12 +187,11 @@ export async function wipeUserData(db: SQLite.SQLiteDatabase) {
     await db.execAsync("VACUUM;");
   } catch (error) {
     console.error(
-      "VACUUM after wipe failed; rows were deleted but pages were not compacted",
+      "VACUUM after wipe failed; deleted rows may not have been fully compacted.",
       error
     );
   }
 
-  // In WAL mode, old rows may remain in the -wal file.
   try {
     await db.execAsync("PRAGMA wal_checkpoint(TRUNCATE);");
   } catch (error) {
@@ -214,15 +232,23 @@ export async function setWipeThreshold(
   );
 }
 
-/** Wrong attempts left before erase triggers, or null when the feature is off. */
+/**
+ * Returns the remaining failed attempts before erasure triggers,
+ * or null when the feature is disabled.
+ */
 export function attemptsUntilWipe(
   failedAttempts: number,
   threshold: number | null
 ): number | null {
-  return threshold === null ? null : Math.max(0, threshold - failedAttempts);
+  return threshold === null
+    ? null
+    : Math.max(0, threshold - failedAttempts);
 }
 
-/** True if there is anything left to erase. */
+/**
+ * Returns true if entries, cycle records, wellness records,
+ * or profile details remain.
+ */
 export async function hasUserData(
   db: SQLite.SQLiteDatabase
 ): Promise<boolean> {
