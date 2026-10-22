@@ -123,17 +123,12 @@ export async function openEncryptedDatabase(
 
   // Expo Go (or a build without the plugin) has no SQLCipher. Never mark the
   // database as encrypted in that case.
-  if (!(await hasSqlCipher(legacy))) {
-    if (__DEV__) {
-      console.warn(
-        "[dbEncryption] SQLCipher is NOT available in this build (Expo Go?). " +
-          "Running with an UNENCRYPTED database. Use a development build to test encryption."
-      );
-      return legacy;
-    }
-    await legacy.closeAsync();
-    throw new Error("SQLCipher is not available in this build; refusing to store health data unencrypted.");
-  }
+ if (!(await hasSqlCipher(legacy))) {
+  await legacy.closeAsync();
+  throw new Error(
+    "SQLCipher is unavailable in this build. Refusing to open the database without encryption."
+  );
+}
 
   if (!(await canRead(legacy))) {
     await legacy.closeAsync();
