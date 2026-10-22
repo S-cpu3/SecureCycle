@@ -45,6 +45,9 @@ export default function LockScreen() {
   // screen instead of the real app. A ref (not state) so the animation callback
   // always sees the current value.
   const duressRef = useRef(false);
+  // True while a PIN check is running. Stops a second press from starting another
+  // check, which would otherwise race the first one.
+  const submittingRef = useRef(false);
   const [pin, setPin] = useState("");
   const [userId, setUserId] = useState<number | null>(null);
   const [isPinSet, setIsPinSet] = useState(false);
@@ -194,7 +197,8 @@ export default function LockScreen() {
     setPin(value);
   };
 
-  const handlePinSubmit = async () => {
+  // The PIN check itself. Errors propagate to handlePinSubmit below.
+  const checkPin = async () => {
     if (!userId || isLocked || pin.length !== PIN_LENGTH) {
       return;
     }
@@ -210,6 +214,8 @@ export default function LockScreen() {
     }
 
     // Both checks always run so the work done does not reveal which PIN was typed.
+    // Skipping the duress check on a wrong PIN would make a duress PIN slower to
+    // reject, which would give it away.
     const isValid = await verifyUserPin(db, pin);
     const duressAction = await checkDuressPin(db, userId, pin);
 
@@ -271,6 +277,25 @@ export default function LockScreen() {
     }
 
     Alert.alert("Incorrect PIN", `Try again in ${Math.ceil(result.backoffMs / 1000)} seconds.${warning}`);
+  };
+
+  // Runs the check and reports any error instead of dropping it silently.
+  // Without this, a thrown error leaves no alert, no failed attempt and no feedback.
+  const handlePinSubmit = async () => {
+    if (submittingRef.current) {
+      return;
+    }
+
+    submittingRef.current = true;
+    try {
+      await checkPin();
+    } catch (error) {
+      console.error("PIN check failed", error);
+      setPin("");
+      Alert.alert("PIN check failed", "The PIN could not be checked. Please try again.");
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
   const handleBiometricAuth = async () => {
