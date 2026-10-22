@@ -45,26 +45,3 @@ All data is processed locally on your device and can be protected with an app PI
  
 [Andriod Download](https://play.google.com/store/apps/details?id=host.exp.exponent)  
 
-### Backend
-1) Ensure you have set up your vitrual python environment `python -m venv .venv`
-2) Activate your virtual environment `.venv/bin/activate` or `source .venv/bin/activate` for bash users
-3) Update and/or install the required packages via `pip install -r requirements.txt`
-4) To test and develop the backend application:
-    ```bash
-    fastapi dev main.py
-    ```
-    If you need access beyond your local network enter:
-    ```bash
-    uvicorn main:app --host 0.0.0.0
-    ```
-
-### Frontend Pages:
-- Home Page
-- History (Overview user data)
-- Daily wellness check-ins for mood, energy, sleep, water, and optional notes
-- Profile (User, Pass, Scannable QR)
-
-## Note(s):
-- App runtime entry is `frontend/package.json` with `"main": "expo-router/entry"`.
-- The app boots Expo Router (not `App.jsx` / `index.jsx`).
-- Root navigation starts in `frontend/app/_layout.tsx`, then loads tabs from `frontend/app/(tabs)/_layout.tsx`.
