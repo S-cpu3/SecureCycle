@@ -33,9 +33,11 @@ const DURESS_COLUMNS: [string, string][] = [
 /**
  * Adds missing duress-related columns to older databases.
  */
-export async function ensureDuressColumns(db: SQLite.SQLiteDatabase) {
+export async function ensureDuressColumns(
+  db: SQLite.SQLiteDatabase
+): Promise<void> {
   const columns = await db.getAllAsync<{ name: string }>(
-    `PRAGMA table_info(SecuritySettings);`
+    "PRAGMA table_info(SecuritySettings);"
   );
 
   for (const [name, definition] of DURESS_COLUMNS) {
@@ -47,7 +49,10 @@ export async function ensureDuressColumns(db: SQLite.SQLiteDatabase) {
   }
 }
 
-async function getRow(db: SQLite.SQLiteDatabase, userId: number) {
+async function getRow(
+  db: SQLite.SQLiteDatabase,
+  userId: number
+) {
   return db.getFirstAsync<DuressRow>(
     `SELECT duress_pin_hash, duress_pin_salt, duress_action
      FROM SecuritySettings
@@ -83,8 +88,8 @@ export async function setDuressPin(
   userId: number,
   pin: string,
   action: DuressAction
-) {
-  // IMPORTANT: await the asynchronous salt generator.
+): Promise<void> {
+  // IMPORTANT: await the salt generator before hashing or saving it.
   const salt = await createPinSalt();
   const pinHash = await hashPin(pin, salt);
 
@@ -99,7 +104,7 @@ export async function setDuressPin(
 export async function clearDuressPin(
   db: SQLite.SQLiteDatabase,
   userId: number
-) {
+): Promise<void> {
   await db.runAsync(
     `UPDATE SecuritySettings
      SET duress_pin_hash = NULL,
@@ -111,9 +116,8 @@ export async function clearDuressPin(
 }
 
 /**
- * Checks the duress PIN and returns its configured action if valid.
- *
- * A valid legacy duress PIN is upgraded to PBKDF2 after verification.
+ * Returns the configured action when the duress PIN is valid.
+ * Valid legacy PINs are upgraded to PBKDF2.
  */
 export async function checkDuressPin(
   db: SQLite.SQLiteDatabase,
@@ -132,21 +136,21 @@ export async function checkDuressPin(
     return null;
   }
 
-  // Verify a PIN already stored using PBKDF2.
+  // Verify a PIN stored in the PBKDF2 format.
   if (isPbkdf2Salt(row.duress_pin_salt)) {
     const candidateHash = await hashPin(pin, row.duress_pin_salt);
 
     return candidateHash === row.duress_pin_hash ? action : null;
   }
 
-  // Verify a PIN stored using the previous legacy format.
+  // Verify a PIN stored using the legacy format.
   const legacyHash = hashLegacyPin(pin, row.duress_pin_salt);
 
   if (legacyHash !== row.duress_pin_hash) {
     return null;
   }
 
-  // Upgrade the hash only after successful legacy verification.
+  // Migrate only after the legacy PIN has been verified.
   const newSalt = await createPinSalt();
   const newHash = await hashPin(pin, newSalt);
 
@@ -163,10 +167,12 @@ export async function checkDuressPin(
 /**
  * Deletes cycle and wellness records and clears profile details.
  *
- * This attempts to reduce leftover database data, but it cannot
- * guarantee forensic destruction of every storage-device copy.
+ * This attempts to reduce residual database data; it cannot guarantee
+ * forensic destruction of all copies on a storage device.
  */
-export async function wipeUserData(db: SQLite.SQLiteDatabase) {
+export async function wipeUserData(
+  db: SQLite.SQLiteDatabase
+): Promise<void> {
   await db.execAsync("PRAGMA secure_delete = ON;");
 
   await db.execAsync(
@@ -187,7 +193,7 @@ export async function wipeUserData(db: SQLite.SQLiteDatabase) {
     await db.execAsync("VACUUM;");
   } catch (error) {
     console.error(
-      "VACUUM after wipe failed; deleted rows may not have been fully compacted.",
+      "VACUUM after wipe failed; database pages may not have been compacted.",
       error
     );
   }
@@ -223,7 +229,7 @@ export async function setWipeThreshold(
   db: SQLite.SQLiteDatabase,
   userId: number,
   threshold: number | null
-) {
+): Promise<void> {
   await db.runAsync(
     `UPDATE SecuritySettings
      SET wipe_after_attempts = ?
@@ -232,10 +238,6 @@ export async function setWipeThreshold(
   );
 }
 
-/**
- * Returns the remaining failed attempts before erasure triggers,
- * or null when the feature is disabled.
- */
 export function attemptsUntilWipe(
   failedAttempts: number,
   threshold: number | null
@@ -245,10 +247,6 @@ export function attemptsUntilWipe(
     : Math.max(0, threshold - failedAttempts);
 }
 
-/**
- * Returns true if entries, cycle records, wellness records,
- * or profile details remain.
- */
 export async function hasUserData(
   db: SQLite.SQLiteDatabase
 ): Promise<boolean> {
@@ -276,3 +274,4 @@ export async function hasUserData(
         counts.profile > 0)
   );
 }
+```
