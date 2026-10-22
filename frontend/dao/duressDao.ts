@@ -89,7 +89,6 @@ export async function setDuressPin(
   pin: string,
   action: DuressAction
 ): Promise<void> {
-  // IMPORTANT: await the salt generator before hashing or saving it.
   const salt = await createPinSalt();
   const pinHash = await hashPin(pin, salt);
 
@@ -150,7 +149,7 @@ export async function checkDuressPin(
     return null;
   }
 
-  // Migrate only after the legacy PIN has been verified.
+  // Migrate only after successful legacy verification.
   const newSalt = await createPinSalt();
   const newHash = await hashPin(pin, newSalt);
 
@@ -167,8 +166,8 @@ export async function checkDuressPin(
 /**
  * Deletes cycle and wellness records and clears profile details.
  *
- * This attempts to reduce residual database data; it cannot guarantee
- * forensic destruction of all copies on a storage device.
+ * This attempts to reduce residual database data but cannot guarantee
+ * forensic destruction of every copy on a storage device.
  */
 export async function wipeUserData(
   db: SQLite.SQLiteDatabase
