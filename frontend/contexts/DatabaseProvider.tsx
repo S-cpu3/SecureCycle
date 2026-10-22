@@ -5,6 +5,7 @@ import { useThemedStyles } from "@/contexts/ThemeContext";
 import { Palette, space } from "@/theme/tokens";
 import { createAllTables } from "./schema";
 import * as SQLite from "expo-sqlite";
+import { openEncryptedDatabase } from "@/utils/dbEncryption";
 import { ensurePrimaryUser } from "@/dao/userDao";
 import { ensureSecuritySettings } from "@/dao/securityDao";
 import { ensureDuressColumns } from "@/dao/duressDao";
@@ -37,7 +38,7 @@ function initializeDatabase() {
     initialization = (async () => {
       let database: SQLite.SQLiteDatabase | null = null;
       try {
-        database = await SQLite.openDatabaseAsync("safecycle.db");
+        database = await openEncryptedDatabase("safecycle.db");
         await database.execAsync(createAllTables);
         await ensureColumn(database, "Users", "pin_salt", "TEXT");
         await ensureColumn(database, "Users", "birth_date", "TEXT");
