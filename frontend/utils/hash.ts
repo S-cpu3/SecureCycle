@@ -128,4 +128,3 @@ export function isLegacyBrokenHash(
 ): boolean {
   return Boolean(hash && hash.includes("NaN"));
 }
-```
