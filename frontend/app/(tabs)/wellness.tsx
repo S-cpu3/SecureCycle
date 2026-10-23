@@ -14,6 +14,7 @@ import {
 } from "react-native-paper";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFocusEffect } from "expo-router";
+import WellnessHealthTools from "@/components/WellnessHealthTools";
 import { ensurePrimaryUser } from "@/dao/userDao";
 import {
   getRecentWellnessCheckIns,
@@ -404,6 +405,8 @@ export default function WellnessScreen() {
           ))
         )}
       </View>
+
+      <WellnessHealthTools />
 
       <Text style={styles.disclaimer}>
         This is a personal wellness record, not a diagnosis or medical advice.
