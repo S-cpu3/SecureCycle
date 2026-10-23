@@ -22,8 +22,6 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT",
-        "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
       ],
       "package": "com.sasanda.biometricauth"
@@ -55,13 +53,8 @@
       "@react-native-community/datetimepicker",
       "expo-image",
       "expo-secure-store",
-      [
-  "expo-sqlite",
-  {
-    "useSQLCipher": true
-  }
-],
-     "expo-sharing",
+      "expo-sqlite",
+      "expo-sharing",
       "expo-font"
     ],
     "experiments": {
