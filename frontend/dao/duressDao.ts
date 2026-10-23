@@ -1,4 +1,5 @@
 import * as SQLite from "expo-sqlite";
+import { ensureWellnessFeatureTables } from "@/dao/wellnessDao";
 import {
   createPinSalt,
   hashPin,
@@ -173,9 +174,11 @@ export async function wipeUserData(
   db: SQLite.SQLiteDatabase
 ): Promise<void> {
   await db.execAsync("PRAGMA secure_delete = ON;");
+  await ensureWellnessFeatureTables(db);
 
   await db.execAsync(
-    "DELETE FROM Entries; DELETE FROM Cycles; DELETE FROM WellnessCheckIns;"
+    `DELETE FROM Entries; DELETE FROM Cycles; DELETE FROM WellnessCheckIns;
+     DELETE FROM DoctorAppointments; DELETE FROM HeartRateReadings;`
   );
 
   await db.execAsync(
@@ -249,16 +252,21 @@ export function attemptsUntilWipe(
 export async function hasUserData(
   db: SQLite.SQLiteDatabase
 ): Promise<boolean> {
+  await ensureWellnessFeatureTables(db);
   const counts = await db.getFirstAsync<{
     entries: number;
     cycles: number;
     wellness: number;
+    appointments: number;
+    heartRate: number;
     profile: number;
   }>(
     `SELECT
        (SELECT COUNT(*) FROM Entries) AS entries,
        (SELECT COUNT(*) FROM Cycles) AS cycles,
        (SELECT COUNT(*) FROM WellnessCheckIns) AS wellness,
+       (SELECT COUNT(*) FROM DoctorAppointments) AS appointments,
+       (SELECT COUNT(*) FROM HeartRateReadings) AS heartRate,
        (SELECT COUNT(*) FROM Users
           WHERE COALESCE(first_name, '') <> ''
              OR COALESCE(last_name, '') <> ''
@@ -270,6 +278,8 @@ export async function hasUserData(
       (counts.entries > 0 ||
         counts.cycles > 0 ||
         counts.wellness > 0 ||
+        counts.appointments > 0 ||
+        counts.heartRate > 0 ||
         counts.profile > 0)
   );
 }
