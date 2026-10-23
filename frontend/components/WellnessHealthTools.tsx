@@ -247,7 +247,7 @@ export default function WellnessHealthTools() {
                 }) ?? `${appointment.appointment_date} ${appointment.appointment_time}`}
               </Text>
               {scheduledAt && scheduledAt.getTime() < Date.now() ? (
-                <Text style={styles.helper}>Past visit — mark complete if attended.</Text>
+                <Text style={styles.helper}>Past visit - mark complete if attended.</Text>
               ) : null}
               {appointment.location ? <Text style={styles.helper}>{appointment.location}</Text> : null}
               {appointment.notes ? <Text style={styles.helper}>{appointment.notes}</Text> : null}
