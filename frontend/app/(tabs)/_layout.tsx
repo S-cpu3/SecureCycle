@@ -40,7 +40,7 @@ export default function TabLayout() {
           title: "", 
           tabBarAccessibilityLabel: "History",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color as string} />
           ) 
         }}
       />
@@ -52,7 +52,7 @@ export default function TabLayout() {
           title: "",
           tabBarAccessibilityLabel: "Home",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color as string} />
           )
         }}
       />
@@ -63,7 +63,7 @@ export default function TabLayout() {
           title: "",
           tabBarAccessibilityLabel: "Wellness check-in",
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? "heart-pulse" : "heart-outline"} size={24} color={color} />
+            <MaterialCommunityIcons name={focused ? "heart-pulse" : "heart-outline"} size={24} color={color as string} />
           ),
         }}
       />
@@ -75,7 +75,7 @@ export default function TabLayout() {
           title: "",
           tabBarAccessibilityLabel: "Profile",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color as string} />
           ) 
         }}
       />
@@ -86,7 +86,7 @@ export default function TabLayout() {
         options={{
           title: "",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? "bug" : "bug-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "bug" : "bug-outline"} size={24} color={color as string} />
           ),
         }}
       />

@@ -39,10 +39,7 @@ function ThemedApp() {
 
   return (
     <PaperProvider theme={paperTheme}>
-      <StatusBar
-        barStyle={scheme === "dark" ? "light-content" : "dark-content"}
-        backgroundColor={colors.background}
-      />
+      <StatusBar barStyle={scheme === "dark" ? "light-content" : "dark-content"} />
       <DatabaseProvider>
         <AuthProvider>
           <AuthGate>
