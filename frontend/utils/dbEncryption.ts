@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { Platform } from "react-native";
 
 const DB_KEY_NAME = "safecycle_db_key_v1";
@@ -138,12 +139,23 @@ export async function openEncryptedDatabase(
 
   // Expo Go (or a build without the plugin) has no SQLCipher. Never mark the
   // database as encrypted in that case.
- if (!(await hasSqlCipher(legacy))) {
-  await legacy.closeAsync();
-  throw new Error(
-    "SQLCipher is unavailable in this build. Refusing to open the database without encryption."
-  );
-}
+  if (!(await hasSqlCipher(legacy))) {
+    // Expo Go ships a prebuilt native binary that cannot include SQLCipher,
+    // and it can never be a release build, so allow plaintext there for UI
+    // work only. Dev builds and release builds still refuse, which catches a
+    // missing "useSQLCipher" plugin option.
+    if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+      console.warn(
+        "[dbEncryption] Running in Expo Go, which has no SQLCipher. " +
+          "This database is NOT encrypted. Use a development build to test encryption."
+      );
+      return legacy;
+    }
+    await legacy.closeAsync();
+    throw new Error(
+      "SQLCipher is unavailable in this build. Refusing to open the database without encryption."
+    );
+  }
 
   if (!(await canRead(legacy))) {
     await legacy.closeAsync();

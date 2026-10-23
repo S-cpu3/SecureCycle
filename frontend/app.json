@@ -53,7 +53,12 @@
       "@react-native-community/datetimepicker",
       "expo-image",
       "expo-secure-store",
-      "expo-sqlite",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
       "expo-sharing",
       "expo-font"
     ],
