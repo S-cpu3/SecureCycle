@@ -31,7 +31,7 @@ All data is processed locally on your device and can be protected with an app PI
     npx expo prebuild
     npm install expo
     npm install @noble/hashes
-    npm install expo@^57.0.0
+    npm install expo@^58.0.0
     npx expo install expo-crypto
     npx expo install --fix && npx expo-doctor
     ```
