@@ -44,12 +44,14 @@ function ThemedApp() {
       <DatabaseProvider>
         <AuthProvider>
           <AuthGate>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="lock" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="decoy" options={{ gestureEnabled: false }} />
-            </Stack>
+            <PrivacyShield>
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="lock" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="decoy" options={{ gestureEnabled: false }} />
+              </Stack>
+            </PrivacyShield>
           </AuthGate>
         </AuthProvider>
       </DatabaseProvider>
