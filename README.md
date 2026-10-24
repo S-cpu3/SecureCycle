@@ -10,6 +10,8 @@ All data is processed locally on your device and can be protected with an app PI
 
 **Auto-lock** - The app locks when it leaves the foreground.
 
+**Privacy Shield** - A screen overlay that triggers instantly when the app leaves the foreground. This prevents the OS app-switcher from taking a snapshot of sensitive health data, mitigating visual disclosure (shoulder surfing).                                
+
 **Erase options** - You can choose to erase your data after a set number of wrong PINs, or after the app has not been unlocked for a period you choose (1 week to 6 months).
 
 **Duress PIN** - set a second PIN that opens a harmless screen instead of your data. Use it only if you are forced to unlock the app.
