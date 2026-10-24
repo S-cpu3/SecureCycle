@@ -5,6 +5,7 @@ import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Href, Stack, useRouter, useSegments } from "expo-router";
 import { PaperProvider } from 'react-native-paper';
+import PrivacyShield from "@/components/PrivacyShield";
 import { buildPaperTheme } from "@/theme/theme";
 import { gateRedirect } from "@/utils/routeGate";
 
