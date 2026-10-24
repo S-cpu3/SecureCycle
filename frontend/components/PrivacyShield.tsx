@@ -13,16 +13,17 @@ export default function PrivacyShield({ children }: { children: React.ReactNode 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
       if (nextState !== "active") {
-        // Stop any fade-out still running, so the cover can't fade away
-        // while the app is in the background.
         opacity.stopAnimation();
         opacity.setValue(1);
         setPointerEvents("auto");
         return;
       }
 
+      // Hide immediately. A fade-out can stall, which would leave the cover on
+      // top of the app.
+      opacity.stopAnimation();
+      opacity.setValue(0);
       setPointerEvents("none");
-      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     });
 
     return () => subscription.remove();
