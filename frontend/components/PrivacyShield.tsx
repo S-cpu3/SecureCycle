@@ -38,7 +38,7 @@ export default function PrivacyShield({ children }: { children: React.ReactNode 
         <Image
           source={require("../assets/images/SafeCycleLogo.png")}
           style={styles.logo}
-          resizeMode="contain"
+          resizeMode="cover"
         />
       </Animated.View>
     </View>
@@ -53,5 +53,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 9999,
   },
-  logo: { width: 100, height: 100 },
+  logo: StyleSheet.absoluteFillObject,
 });
