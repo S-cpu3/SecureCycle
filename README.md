@@ -10,7 +10,9 @@ All data is processed locally on your device and can be protected with an app PI
 
 **Auto-lock** - The app locks when it leaves the foreground.
 
-**Privacy Shield** - A screen overlay that triggers instantly when the app leaves the foreground. This prevents the OS app-switcher from taking a snapshot of sensitive health data, mitigating visual disclosure (shoulder surfing).                                
+**Privacy Shield** - A screen overlay that triggers instantly when the app leaves the foreground. This prevents the OS app-switcher from taking a snapshot of sensitive health data, mitigating visual disclosure (shoulder surfing).                 
+
+**Data Encryption** - Your health data is stored in an encrypted database protected by SQLCipher. The encryption key is random and stored in your phone's secure storage (iOS Keychain or Android Keystore)
 
 **Erase options** - You can choose to erase your data after a set number of wrong PINs, or after the app has not been unlocked for a period you choose (1 week to 6 months).
 
