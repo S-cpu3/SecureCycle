@@ -24,7 +24,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
-      if (appState.current === "active" && nextState === "background") {
+       if (nextState === "background") {
         setIsUnlocked(false);
         setIsDuress(false);
       }
