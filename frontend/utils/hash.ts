@@ -8,7 +8,7 @@ import {
 } from "@noble/hashes/utils.js";
 
 const PBKDF2_PREFIX = "pbkdf2-sha256";
-const PBKDF2_ITERATIONS = 15_000;
+const PBKDF2_ITERATIONS = 8_000;
 const DERIVED_KEY_LENGTH = 32;
 const SALT_LENGTH_BYTES = 16;
 
