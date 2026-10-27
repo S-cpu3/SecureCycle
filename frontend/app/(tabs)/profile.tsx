@@ -275,12 +275,12 @@ export default function Profile() {
 
     // FIX 11d: Block biometrics while duress PIN is configured
     if ((await getDuressConfig(db, profile.user_id)).isSet) {
-      Alert.alert("Unavailable", "Biometric unlock isn't available right now.");
+      Alert.alert("Unavailable", "");
       return;
     }
 
     if (isExpoGo) {
-      Alert.alert("Development Build Required", "Face ID needs a development build on iPhone. Expo Go does not support it.");
+      Alert.alert("Development Build Required", "");
       return;
     }
 
@@ -290,23 +290,23 @@ export default function Profile() {
       const isEnrolled = hasHardware ? await LocalAuthentication.isEnrolledAsync() : false;
 
       if (!hasHardware || !isEnrolled) {
-        Alert.alert("Unavailable", "Face ID or biometrics are not enrolled on this device.");
+        Alert.alert("Unavailable", "");
         return;
       }
 
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Enable biometric unlock for SecureCycle",
+        promptMessage: "",
         disableDeviceFallback: true,
       });
 
       if (!result.success) {
-        Alert.alert("Not Enabled", result.error || "Biometric setup was cancelled.");
+        Alert.alert("Not Enabled", result.error || "");
         return;
       }
 
       await setBiometricEnabled(db, profile.user_id, true);
       await reloadSecurity(profile.user_id);
-      Alert.alert("Enabled", "Biometric unlock now requires Face ID or biometrics only.");
+      Alert.alert("Enabled", "");
     } finally {
       setIsFaceIdBusy(false);
     }
@@ -516,7 +516,7 @@ export default function Profile() {
             </View>
             <Divider style={styles.divider} />
             <Text style={styles.snapshotValue}>{phaseLabel}</Text>
-            <Text style={styles.supportText}>Face ID unlock does not fall back to the device passcode.</Text>
+            <Text style={styles.supportText}></Text>
             <TextInput value={newPin} onChangeText={setNewPin} placeholder="New 6-digit PIN" placeholderTextColor={colors.inkSubtle} keyboardType="number-pad" maxLength={6} style={styles.input} />
             <TextInput value={confirmPin} onChangeText={setConfirmPin} placeholder="Confirm new PIN" placeholderTextColor={colors.inkSubtle} keyboardType="number-pad" maxLength={6} style={styles.input} />
             <Button mode="contained" style={styles.primaryButton} onPress={handleChangePin}>
