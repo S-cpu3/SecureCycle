@@ -92,7 +92,7 @@ export default function DuressPinCard({ style }: { style?: StyleProp<ViewStyle> 
     await setBiometricEnabled(db, userId, false);
     resetFields();
     setConfig(await getDuressConfig(db, userId));
-    Alert.alert("Duress PIN saved", "Biometric unlock has been turned off so it can't bypass the duress PIN.");
+    Alert.alert("Duress PIN saved", "Only use your Duress PIN when needed");
   };
 
   const handleRemove = async () => {
