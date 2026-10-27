@@ -438,7 +438,7 @@ export default function Profile() {
             </View>
             <View style={styles.badge}>
               <MaterialCommunityIcons name="face-recognition" size={16} color={colors.ink} />
-              <Text style={styles.badgeText}>{security?.biometric_enabled ? "Biometric ready" : "PIN only"}</Text>
+              <Text style={styles.badgeText}>{security?.biometric_enabled ? "" : "PIN only"}</Text>
             </View>
           </View>
         </View>
