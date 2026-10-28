@@ -36,8 +36,8 @@ export default function PrivacyShield({ children }: { children: React.ReactNode 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   cover: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 9999,
   },
-  logo: StyleSheet.absoluteFillObject,
+  logo: StyleSheet.absoluteFill,
 });

@@ -1,17 +1,16 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { LayoutChangeEvent, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Button } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getDefaultHeaderHeight } from "expo-router/react-navigation";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import Animated, {
   Extrapolation,
   FadeIn,
   FadeOut,
   interpolate,
-  runOnJS,
   SharedValue,
-  useAnimatedReaction,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -22,95 +21,63 @@ import { Palette, radius, size, space, type } from "@/theme/tokens";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
-type Feature = { icon: IconName; title: string; text: string };
+// Each card gets its own fill so the deck reads as distinct cards, not one long page.
+type Tone = { fill: [string, string]; ink: string };
 
-type Slide = {
+type Card = {
   icon: IconName;
   eyebrow: string;
   title: string;
   body: string;
-  chips?: string[];
-  features?: Feature[];
-  quote?: string;
+  tags?: string[];
+  tone: (colors: Palette) => Tone;
 };
 
-// Copy comes from the README so the intro and the docs say the same thing.
-const SLIDES: Slide[] = [
+// Copy is kept short enough that every card fits without scrolling.
+const CARDS: Card[] = [
   {
     icon: "shield-lock-outline",
-    eyebrow: "Welcome to SecureCycle",
+    eyebrow: "Welcome",
     title: "Your health.\nYour device.",
-    body:
-      "A private place for sensitive health information: conditions, diagnoses, medications, allergies, " +
-      "doctor's appointments, mental health, treatment notes and reproductive health.",
-    chips: ["No trackers", "No ads", "No AI training on your data"],
-    quote: "Privacy is a fundamental human right, not an option.",
+    body: "A private place for your health records.",
+    tags: ["No trackers", "No ads", "No AI training"],
+    tone: (c) => ({ fill: [c.primary, c.accent], ink: c.onPrimary }),
   },
   {
     icon: "database-lock-outline",
-    eyebrow: "Stays on your phone",
+    eyebrow: "On-device",
     title: "No one can see it.\nNot even us.",
-    body: "All data is processed locally on your device. Nothing is sent to a server.",
-    features: [
-      {
-        icon: "database-lock-outline",
-        title: "Data encryption",
-        text: "Stored in a database encrypted with SQLCipher.",
-      },
-      {
-        icon: "key-chain-variant",
-        title: "Hardware-backed key",
-        text: "The key is random and kept in your phone's secure storage (iOS Keychain or Android Keystore).",
-      },
-    ],
+    body: "Everything is encrypted and never leaves this phone.",
+    tone: (c) => ({ fill: [c.phaseFertile, c.phaseFertile], ink: c.onPhaseFertile }),
   },
   {
     icon: "lock-check-outline",
     eyebrow: "Locked down",
-    title: "Locked when you're\nnot looking",
-    body: "Several layers keep people out, even if they have your phone.",
-    features: [
-      { icon: "numeric", title: "App PIN", text: "Protect the app with a 6-digit PIN." },
-      {
-        icon: "timer-sand-complete",
-        title: "Brute force protection",
-        text: "Each wrong PIN adds a longer wait, up to 24 hours.",
-      },
-      { icon: "lock-clock", title: "Auto-lock", text: "The app locks as soon as it leaves the screen." },
-      {
-        icon: "eye-off-outline",
-        title: "Privacy Shield",
-        text: "The app switcher shows a cover screen, never your health data.",
-      },
-    ],
+    title: "Locked when you're not looking",
+    body: "Layers that keep people out, even with your phone.",
+    tags: ["PIN", "Auto-lock", "Wrong-PIN delays", "Privacy Shield"],
+    tone: (c) => ({ fill: [c.phaseLuteal, c.phaseLuteal], ink: c.onPhaseLuteal }),
   },
   {
-    icon: "account-alert-outline",
-    eyebrow: "For hard situations",
-    title: "Protection if\nyou're forced",
-    body: "Optional tools for when someone makes you unlock the app.",
-    features: [
-      {
-        icon: "incognito",
-        title: "Duress PIN",
-        text: "A second PIN that opens a harmless screen instead of your data.",
-      },
-      {
-        icon: "delete-clock-outline",
-        title: "Erase options",
-        text: "Erase your data after too many wrong PINs, or if the app isn't unlocked for 1 week to 6 months.",
-      },
-    ],
+    icon: "incognito",
+    eyebrow: "If you're forced",
+    title: "A PIN that hides everything",
+    body: "A duress PIN opens a harmless screen. Data can also auto-erase.",
+    tone: (c) => ({ fill: [c.ink, c.ink], ink: c.background }),
   },
   {
     icon: "cellphone-lock",
-    eyebrow: "One last step",
+    eyebrow: "Last step",
     title: "Set your PIN",
-    body:
-      "The PIN is optional, and we strongly recommend setting one. Without a PIN, anyone who can " +
-      "open your phone can open the app.",
+    body: "Optional, but without one anyone who opens your phone can open the app.",
+    tone: (c) => ({ fill: [c.surface, c.surface], ink: c.ink }),
   },
 ];
+
+const CARD_MAX_WIDTH = 360;
+const CARD_MAX_HEIGHT = 440;
+// Matches the bottom tab bar's default (non-compact) height.
+const TAB_BAR_HEIGHT = 49;
 
 type Props = {
   // Called once the user finishes or skips. setUpPin is true when they chose to
@@ -120,358 +87,308 @@ type Props = {
 
 /**
  * First-run intro. Rendered by the tab layout over the unlocked app, so it is
- * never reachable from the lock screen or a duress session.
+ * never reachable from the lock screen or a duress session. It only covers the
+ * screen content, leaving the header and tab bar visible.
  */
 export default function Onboarding({ onDone }: Props) {
-  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const frame = useWindowDimensions();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollX = useSharedValue(0);
-  const [index, setIndex] = useState(0);
+  const [area, setArea] = useState({ width: frame.width, height: 0 });
 
-  const isLast = index === SLIDES.length - 1;
+  const top = getDefaultHeaderHeight(frame, false, insets.top);
+  const bottom = TAB_BAR_HEIGHT + insets.bottom;
 
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollX.value = event.contentOffset.x;
   });
 
-  // Keeps the buttons in sync with swipes as well as Next presses.
-  useAnimatedReaction(
-    () => Math.round(scrollX.value / width),
-    (current, previous) => {
-      if (current !== previous) {
-        runOnJS(setIndex)(current);
-      }
-    },
-    [width]
-  );
+  const onLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setArea({ width, height });
+  };
 
   const goTo = (next: number) => {
-    scrollRef.current?.scrollTo({ x: next * width, animated: true });
+    scrollRef.current?.scrollTo({ x: next * area.width, animated: true });
   };
+
+  const cardWidth = Math.min(area.width - space[6] * 2, CARD_MAX_WIDTH);
+  const cardHeight = Math.min(area.height - space[6] * 2, CARD_MAX_HEIGHT);
 
   return (
     <Animated.View
-      entering={FadeIn.duration(350)}
-      exiting={FadeOut.duration(250)}
-      style={[styles.container, { paddingTop: insets.top + space[2], paddingBottom: insets.bottom + space[4] }]}
+      entering={FadeIn.duration(300)}
+      exiting={FadeOut.duration(200)}
+      style={[styles.overlay, { top, bottom }]}
+      onLayout={onLayout}
     >
-      <View style={styles.topBar}>
-        {!isLast && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Skip introduction"
-            onPress={() => onDone(false)}
-            hitSlop={12}
-            style={styles.skip}
-          >
-            <Text style={styles.skipText}>Skip</Text>
-          </Pressable>
-        )}
-      </View>
-
-      <Animated.ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        bounces={false}
-        showsHorizontalScrollIndicator={false}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        style={styles.pager}
-      >
-        {SLIDES.map((slide, i) => (
-          <SlideView key={slide.title} slide={slide} index={i} width={width} scrollX={scrollX} />
-        ))}
-      </Animated.ScrollView>
-
-      <View style={styles.footer}>
-        <View style={styles.dots} accessible accessibilityLabel={`Page ${index + 1} of ${SLIDES.length}`}>
-          {SLIDES.map((slide, i) => (
-            <Dot key={slide.title} index={i} width={width} scrollX={scrollX} />
+      {area.height > 0 && (
+        <Animated.ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          bounces={false}
+          showsHorizontalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+        >
+          {CARDS.map((card, i) => (
+            <CardView
+              key={card.eyebrow}
+              card={card}
+              index={i}
+              page={area}
+              cardSize={{ width: cardWidth, height: cardHeight }}
+              scrollX={scrollX}
+              onNext={() => goTo(i + 1)}
+              onDone={onDone}
+            />
           ))}
-        </View>
-
-        {isLast ? (
-          <>
-            <Button
-              mode="contained"
-              icon="lock-outline"
-              onPress={() => onDone(true)}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-            >
-              Set up my PIN
-            </Button>
-            <Button mode="text" textColor={colors.inkMuted} onPress={() => onDone(false)} style={styles.button}>
-              Not now
-            </Button>
-          </>
-        ) : (
-          <Button
-            mode="contained"
-            icon="arrow-right"
-            contentStyle={[styles.buttonContent, styles.iconRight]}
-            onPress={() => goTo(index + 1)}
-            style={styles.button}
-          >
-            {index === 0 ? "Get started" : "Next"}
-          </Button>
-        )}
-      </View>
+        </Animated.ScrollView>
+      )}
     </Animated.View>
   );
 }
 
-type PageProps = { index: number; width: number; scrollX: SharedValue<number> };
+type CardProps = {
+  card: Card;
+  index: number;
+  page: { width: number; height: number };
+  cardSize: { width: number; height: number };
+  scrollX: SharedValue<number>;
+  onNext: () => void;
+  onDone: (setUpPin: boolean) => void;
+};
 
-function SlideView({ slide, index, width, scrollX }: PageProps & { slide: Slide }) {
+function CardView({ card, index, page, cardSize, scrollX, onNext, onDone }: CardProps) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const range = [(index - 1) * width, index * width, (index + 1) * width];
+  const tone = card.tone(colors);
+  const isLast = index === CARDS.length - 1;
+  const range = [(index - 1) * page.width, index * page.width, (index + 1) * page.width];
 
-  // The hero shrinks and fades as it leaves; the text drifts a little slower
-  // than the page for a light parallax.
-  const heroStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollX.value, range, [0, 1, 0], Extrapolation.CLAMP),
-    transform: [{ scale: interpolate(scrollX.value, range, [0.6, 1, 0.6], Extrapolation.CLAMP) }],
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollX.value, range, [0, 1, 0], Extrapolation.CLAMP),
-    transform: [{ translateX: interpolate(scrollX.value, range, [width * 0.25, 0, -width * 0.25], Extrapolation.CLAMP) }],
+  // Neighbouring cards tilt and shrink away, so swiping feels like flipping a deck.
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollX.value, range, [0.4, 1, 0.4], Extrapolation.CLAMP),
+    transform: [
+      { scale: interpolate(scrollX.value, range, [0.88, 1, 0.88], Extrapolation.CLAMP) },
+      { rotate: `${interpolate(scrollX.value, range, [6, 0, -6], Extrapolation.CLAMP)}deg` },
+    ],
   }));
 
   return (
-    <ScrollView
-      style={{ width }}
-      contentContainerStyle={styles.slide}
-      showsVerticalScrollIndicator={false}
-      nestedScrollEnabled
-    >
-      <Animated.View style={[styles.heroWrap, heroStyle]}>
-        <View style={styles.halo} />
+    <View style={[styles.page, page]}>
+      <Animated.View style={[styles.cardShadow, cardSize, cardStyle]}>
         <LinearGradient
-          colors={[colors.primary, colors.accent]}
+          colors={tone.fill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.hero}
+          style={[styles.card, isLast && styles.lastCard]}
         >
-          <MaterialCommunityIcons name={slide.icon} size={52} color={colors.onPrimary} />
+          <MaterialCommunityIcons
+            name={card.icon}
+            size={180}
+            color={tone.ink}
+            style={styles.watermark}
+            importantForAccessibility="no"
+          />
+
+          <View style={styles.topRow}>
+            <Text style={[styles.eyebrow, { color: tone.ink }]}>{card.eyebrow}</Text>
+            {!isLast && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Skip introduction"
+                onPress={() => onDone(false)}
+                hitSlop={12}
+              >
+                <Text style={[styles.skip, { color: tone.ink }]}>Skip</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <View style={styles.content}>
+            <View style={[styles.badge, { borderColor: tone.ink }]}>
+              <MaterialCommunityIcons name={card.icon} size={30} color={isLast ? colors.accentInk : tone.ink} />
+            </View>
+            <Text style={[styles.title, { color: tone.ink }]} accessibilityRole="header">
+              {card.title}
+            </Text>
+            <Text style={[styles.body, { color: tone.ink }]}>{card.body}</Text>
+
+            {card.tags && (
+              <View style={styles.tags}>
+                {card.tags.map((tag) => (
+                  <View key={tag} style={[styles.tag, { borderColor: tone.ink }]}>
+                    <Text style={[styles.tagText, { color: tone.ink }]}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {isLast ? (
+            <View style={styles.actions}>
+              <Button
+                mode="contained"
+                icon="lock-outline"
+                onPress={() => onDone(true)}
+                style={styles.button}
+                contentStyle={styles.buttonContent}
+              >
+                Set up my PIN
+              </Button>
+              <Button mode="text" textColor={colors.inkMuted} onPress={() => onDone(false)} style={styles.button}>
+                Not now
+              </Button>
+            </View>
+          ) : (
+            <View style={styles.bottomRow}>
+              <View style={styles.dots} accessible accessibilityLabel={`Card ${index + 1} of ${CARDS.length}`}>
+                {CARDS.map((other, i) => (
+                  <View
+                    key={other.eyebrow}
+                    style={[styles.dot, { backgroundColor: tone.ink }, i === index ? styles.dotActive : styles.dotIdle]}
+                  />
+                ))}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Next card"
+                onPress={onNext}
+                style={({ pressed }) => [styles.next, { backgroundColor: tone.ink }, pressed && styles.pressed]}
+              >
+                <MaterialCommunityIcons name="arrow-right" size={24} color={tone.fill[0]} />
+              </Pressable>
+            </View>
+          )}
         </LinearGradient>
       </Animated.View>
-
-      <Animated.View style={[styles.textBlock, textStyle]}>
-        <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
-        <Text style={styles.title} accessibilityRole="header">
-          {slide.title}
-        </Text>
-        <Text style={styles.body}>{slide.body}</Text>
-
-        {slide.chips && (
-          <View style={styles.chips}>
-            {slide.chips.map((chip) => (
-              <View key={chip} style={styles.chip}>
-                <MaterialCommunityIcons name="cancel" size={14} color={colors.accentInk} />
-                <Text style={styles.chipText}>{chip}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {slide.features && (
-          <View style={styles.card}>
-            {slide.features.map((feature, i) => (
-              <View key={feature.title} style={[styles.feature, i > 0 && styles.featureDivider]}>
-                <View style={styles.featureIcon}>
-                  <MaterialCommunityIcons name={feature.icon} size={20} color={colors.accentInk} />
-                </View>
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureBody}>{feature.text}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {slide.quote && <Text style={styles.quote}>“{slide.quote}”</Text>}
-      </Animated.View>
-    </ScrollView>
+    </View>
   );
 }
 
-function Dot({ index, width, scrollX }: PageProps) {
-  const styles = useThemedStyles(makeStyles);
-  const range = [(index - 1) * width, index * width, (index + 1) * width];
-
-  const dotStyle = useAnimatedStyle(() => ({
-    width: interpolate(scrollX.value, range, [8, 24, 8], Extrapolation.CLAMP),
-    opacity: interpolate(scrollX.value, range, [0.35, 1, 0.35], Extrapolation.CLAMP),
-  }));
-
-  return <Animated.View style={[styles.dot, dotStyle]} />;
-}
-
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.background,
+  overlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    backgroundColor: colors.scrim,
     zIndex: 10,
   },
-  topBar: {
-    height: 40,
-    flexDirection: "row",
-    justifyContent: "flex-end",
+  page: {
+    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: space[6],
   },
-  skip: {
-    paddingVertical: space[1],
-    paddingHorizontal: space[2],
+  cardShadow: {
+    borderRadius: radius.lg,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  skipText: {
-    ...type.label,
-    fontSize: 15,
-    color: colors.inkMuted,
-  },
-  pager: {
+  card: {
     flex: 1,
+    borderRadius: radius.lg,
+    padding: space[6],
+    overflow: "hidden",
   },
-  slide: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: space[6],
-    paddingVertical: space[4],
+  lastCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  heroWrap: {
-    alignSelf: "center",
-    width: 168,
-    height: 168,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: space[8],
+  watermark: {
+    position: "absolute",
+    right: -40,
+    bottom: -30,
+    opacity: 0.08,
   },
-  halo: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radius.full,
-    backgroundColor: colors.accentSoft,
-  },
-  hero: {
-    width: 112,
-    height: 112,
-    borderRadius: radius.full,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  textBlock: {
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
   eyebrow: {
     ...type.eyebrow,
-    color: colors.accentInk,
-    marginBottom: space[2],
-    textAlign: "center",
+    opacity: 0.85,
+  },
+  skip: {
+    ...type.label,
+    opacity: 0.85,
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    gap: space[3],
+  },
+  badge: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: space[1],
   },
   title: {
     ...type.screenTitle,
-    color: colors.ink,
-    textAlign: "center",
-    marginBottom: space[3],
+    fontSize: 26,
+    lineHeight: 32,
   },
   body: {
     ...type.body,
-    fontSize: 16,
-    lineHeight: 23,
-    color: colors.inkMuted,
-    textAlign: "center",
-    maxWidth: 360,
+    opacity: 0.9,
   },
-  chips: {
+  tags: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "center",
     gap: space[2],
-    marginTop: space[6],
+    marginTop: space[1],
   },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space[1],
-    paddingVertical: 6,
+  tag: {
+    paddingVertical: space[1],
     paddingHorizontal: space[3],
     borderRadius: radius.full,
-    backgroundColor: colors.accentSoft,
-  },
-  chipText: {
-    ...type.label,
-    color: colors.accentInk,
-  },
-  quote: {
-    ...type.body,
-    fontStyle: "italic",
-    color: colors.inkSubtle,
-    textAlign: "center",
-    marginTop: space[6],
-    maxWidth: 300,
-  },
-  card: {
-    alignSelf: "stretch",
-    marginTop: space[6],
-    paddingHorizontal: space[4],
-    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
-  feature: {
+  tagText: {
+    ...type.label,
+  },
+  bottomRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: space[3],
-    paddingVertical: space[3],
-  },
-  featureDivider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.accentSoft,
-  },
-  featureText: {
-    flex: 1,
-  },
-  featureTitle: {
-    ...type.bodyStrong,
-    fontSize: 15,
-    color: colors.ink,
-  },
-  featureBody: {
-    ...type.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.inkMuted,
-  },
-  footer: {
-    paddingHorizontal: space[6],
-    alignItems: "center",
-    gap: space[2],
   },
   dots: {
     flexDirection: "row",
-    gap: space[2],
-    marginBottom: space[4],
+    gap: space[1],
   },
   dot: {
-    height: 8,
+    height: 6,
     borderRadius: radius.full,
-    backgroundColor: colors.accentInk,
+  },
+  dotActive: {
+    width: 18,
+  },
+  dotIdle: {
+    width: 6,
+    opacity: 0.35,
+  },
+  next: {
+    width: size.touchTarget,
+    height: size.touchTarget,
+    borderRadius: radius.full,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pressed: {
+    opacity: 0.8,
+  },
+  actions: {
+    gap: space[1],
   },
   button: {
     alignSelf: "stretch",
@@ -479,8 +396,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   buttonContent: {
     minHeight: size.touchTarget,
-  },
-  iconRight: {
-    flexDirection: "row-reverse",
   },
 });
