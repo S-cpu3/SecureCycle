@@ -31,7 +31,7 @@ import {
   hasUserData,
   wipeUserData,
 } from "@/dao/duressDao";
-import { hash } from "@/utils/hash";
+import { sha256 } from "@/utils/hash";
 import { verifyRecoveryPhrase } from "@/dao/userDao";
 
 const PIN_LENGTH = 6;
@@ -328,7 +328,7 @@ export default function LockScreen() {
     if (!userId || !recoveryInput) return;
 
     try {
-      const isValid = await verifyRecoveryPhrase(db, userId, recoveryInput, hash);
+      const isValid = await verifyRecoveryPhrase(db, userId, recoveryInput, sha256);
       if (isValid) {
         Alert.alert("Verified", "Recovery phrase accepted. Please set a new PIN.");
         setIsPinSet(false);
