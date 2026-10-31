@@ -11,6 +11,7 @@ export type UserProfile = {
   user_id: number;
   pin_hash: string | null;
   pin_salt: string | null;
+  recovery_hash: string | null;
   first_name: string | null;
   last_name: string | null;
   birth_date: string | null;
@@ -32,6 +33,7 @@ export async function getPrimaryUser(
        user_id,
        pin_hash,
        pin_salt,
+       recovery_hash,
        first_name,
        last_name,
        birth_date,
@@ -58,14 +60,15 @@ export async function ensurePrimaryUser(
     `INSERT INTO Users (
        pin_hash,
        pin_salt,
+       recovery_hash,
        first_name,
        last_name,
        birth_date,
        auth_type,
        created_at
      )
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [null, null, "", "", "", "local", createdAt]
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [null, null, null, "", "", "", "local", createdAt]
   );
 
   const user = await getPrimaryUser(db);
@@ -170,4 +173,37 @@ export function hasUsablePin(
   user: Pick<UserProfile, "pin_hash">
 ): boolean {
   return Boolean(user.pin_hash) && !isLegacyBrokenHash(user.pin_hash);
+}
+
+/**
+ * Stores the hashed version of the recovery phrase for a user.
+ */
+export async function updateRecoveryHash(
+  db: SQLite.SQLiteDatabase,
+  userId: number,
+  hash: string
+) {
+  await db.runAsync(
+    'UPDATE Users SET recovery_hash = ? WHERE user_id = ?',
+    [hash, userId]
+  );
+}
+
+/**
+ * Verifies a provided phrase against the stored hash.
+ */
+export async function verifyRecoveryPhrase(
+  db: SQLite.SQLiteDatabase,
+  userId: number,
+  providedPhrase: string,
+  hashFn: (s: string) => Promise<string>
+) {
+  const user = await ensurePrimaryUser(db);
+  if (user.user_id !== userId) return false;
+  if (!user.recovery_hash) return false;
+
+  const normalized = providedPhrase.toLowerCase().trim().replace(/\\s+/g, ' ');
+  const providedHash = await hashFn(normalized);
+
+  return user.recovery_hash === providedHash;
 }
