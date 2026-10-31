@@ -21,7 +21,7 @@ import { Palette, radius, size, space, type } from "@/theme/tokens";
 import { useDatabase } from "@/hooks/use-database";
 import { ensurePrimaryUser, updateRecoveryHash } from "@/dao/userDao";
 import { generateRecoveryPhrase, phraseToString } from "@/utils/recovery";
-import { hash } from "@/utils/hash";
+import { sha256 } from "@/utils/hash";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
@@ -115,7 +115,7 @@ export default function Onboarding({ onDone }: Props) {
       const phrase = generateRecoveryPhrase();
       setRecoveryPhrase(phrase);
 
-      const recoveryHash = await hash(phraseToString(phrase));
+      const recoveryHash = sha256(phraseToString(phrase));
       await updateRecoveryHash(db, user.user_id, recoveryHash);
 
       setShowRecovery(true);
@@ -536,3 +536,4 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     minHeight: size.touchTarget,
   },
 });
+
