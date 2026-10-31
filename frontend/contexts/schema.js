@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS Users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     pin_hash TEXT,
     pin_salt TEXT,
+    recovery_hash TEXT,
     first_name TEXT,
     last_name TEXT,
     birth_date TEXT,
@@ -69,3 +70,4 @@ CREATE TABLE IF NOT EXISTS WellnessCheckIns (
     FOREIGN KEY (user_id) REFERENCES Users(user_id)
 );
 `
+
