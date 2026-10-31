@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, Alert, AppState, Platform, Pressable } from "react-native";
+import { View, Text, StyleSheet, Alert, AppState, Platform, Pressable, TextInput } from "react-native";
 import { Image } from "expo-image";
 import { Button } from "react-native-paper";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -31,6 +31,8 @@ import {
   hasUserData,
   wipeUserData,
 } from "@/dao/duressDao";
+import { hash } from "@/utils/hash";
+import { verifyRecoveryPhrase } from "@/dao/userDao";
 
 const PIN_LENGTH = 6;
 
@@ -57,6 +59,8 @@ export default function LockScreen() {
   const [now, setNow] = useState(Date.now());
   const [canUseBiometrics, setCanUseBiometrics] = useState(false);
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryInput, setRecoveryInput] = useState("");
 
   const lockScreenOpacity = useSharedValue(1);
   const gradientOpacity = useSharedValue(0);
@@ -318,6 +322,26 @@ export default function LockScreen() {
     await markUnlocked(userId);
     setLockedUntil(0);
     handleUnlock();
+  };
+
+  const handleRecoverySubmit = async () => {
+    if (!userId || !recoveryInput) return;
+
+    try {
+      const isValid = await verifyRecoveryPhrase(db, userId, recoveryInput, hash);
+      if (isValid) {
+        Alert.alert("Verified", "Recovery phrase accepted. Please set a new PIN.");
+        setIsPinSet(false);
+        setIsRecovering(false);
+        setRecoveryInput("");
+        setPin("");
+      } else {
+        Alert.alert("Failed", "Invalid recovery phrase.");
+      }
+    } catch (error) {
+      console.error("Recovery failed", error);
+      Alert.alert("Error", "An error occurred during recovery.");
+    }
   };
 
   // Entered digits show as filled dots, never as characters.
