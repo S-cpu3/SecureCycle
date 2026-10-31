@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { LayoutChangeEvent, Pressable, StyleSheet, Text, useWindowDimensions, View, ScrollView } from "react-native";
 import { Button } from "react-native-paper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,6 +18,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTheme, useThemedStyles } from "@/contexts/ThemeContext";
 import { Palette, radius, size, space, type } from "@/theme/tokens";
+import { useDatabase } from "@/hooks/use-database";
+import { ensurePrimaryUser, updateRecoveryHash } from "@/dao/userDao";
+import { generateRecoveryPhrase, phraseToString } from "@/utils/recovery";
+import { hash } from "@/utils/hash";
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
@@ -91,15 +95,34 @@ type Props = {
  * screen content, leaving the header and tab bar visible.
  */
 export default function Onboarding({ onDone }: Props) {
+  const db = useDatabase();
   const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const frame = useWindowDimensions();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollX = useSharedValue(0);
   const [area, setArea] = useState({ width: frame.width, height: 0 });
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryPhrase, setRecoveryPhrase] = useState<string[]>([]);
+  const [hasConfirmed, setHasConfirmed] = useState(false);
 
   const top = getDefaultHeaderHeight(frame, false, insets.top);
   const bottom = TAB_BAR_HEIGHT + insets.bottom;
+
+  const handleFinish = async (setUpPin: boolean) => {
+    if (setUpPin) {
+      const user = await ensurePrimaryUser(db);
+      const phrase = generateRecoveryPhrase();
+      setRecoveryPhrase(phrase);
+
+      const recoveryHash = await hash(phraseToString(phrase));
+      await updateRecoveryHash(db, user.user_id, recoveryHash);
+
+      setShowRecovery(true);
+    } else {
+      onDone(false);
+    }
+  };
 
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollX.value = event.contentOffset.x;
@@ -116,6 +139,45 @@ export default function Onboarding({ onDone }: Props) {
 
   const cardWidth = Math.min(area.width - space[6] * 2, CARD_MAX_WIDTH);
   const cardHeight = Math.min(area.height - space[6] * 2, CARD_MAX_HEIGHT);
+
+  if (showRecovery) {
+    return (
+      <View style={[styles.overlay, { top, bottom }]}>
+        <ScrollView contentContainerStyle={styles.recoveryContainer}>
+          <Text style={styles.recoveryTitle}>Your Recovery Key</Text>
+          <Text style={styles.recoverySubtitle}>
+            Write these words down on paper. This is the ONLY way to recover your account if you forget your PIN.
+          </Text>
+
+          <View style={styles.phraseGrid}>
+            {recoveryPhrase.map((word, i) => (
+              <View key={i} style={styles.phraseItem}>
+                <Text style={styles.phraseIndex}>{i + 1}.</Text>
+                <Text style={styles.phraseWord}>{word}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Pressable
+            onPress={() => setHasConfirmed(true)}
+            style={[styles.confirmBox, hasConfirmed && styles.confirmBoxChecked]}
+          >
+            <Text style={styles.confirmText}>I have written these words down safely</Text>
+          </Pressable>
+
+          <Button
+            mode="contained"
+            disabled={!hasConfirmed}
+            onPress={() => onDone(true)}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+          >
+            Finish Setup
+          </Button>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <Animated.View
@@ -143,7 +205,7 @@ export default function Onboarding({ onDone }: Props) {
               cardSize={{ width: cardWidth, height: cardHeight }}
               scrollX={scrollX}
               onNext={() => goTo(i + 1)}
-              onDone={onDone}
+              onDone={handleFinish}
             />
           ))}
         </Animated.ScrollView>
@@ -277,6 +339,82 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     right: 0,
     backgroundColor: colors.scrim,
     zIndex: 10,
+  },
+  recoveryContainer: {
+    flex: 1,
+    padding: space[6],
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recoveryTitle: {
+    ...type.screenTitle,
+    fontSize: 28,
+    textAlign: "center",
+    color: colors.ink,
+    marginBottom: space[2],
+  },
+  recoverySubtitle: {
+    ...type.body,
+    textAlign: "center",
+    color: colors.inkMuted,
+    marginBottom: space[6],
+    paddingHorizontal: space[4],
+  },
+  phraseGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space[3],
+    justifyContent: "center",
+    marginBottom: space[6],
+  },
+  phraseItem: {
+    flexDirection: "row",
+    width: "45%",
+    padding: space[3],
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: space[2],
+  },
+  phraseIndex: {
+    ...type.label,
+    color: colors.inkMuted,
+    marginRight: space[2],
+    width: 20,
+  },
+  phraseWord: {
+    ...type.body,
+    fontWeight: "600",
+    color: colors.ink,
+  },
+  confirmBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: space[4],
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: space[6],
+    width: "100%",
+  },
+  confirmBoxChecked: {
+    borderColor: colors.accent,
+    backgroundColor: colors.surfaceRaised,
+  },
+  confirmText: {
+    ...type.body,
+    color: colors.ink,
+    textAlign: "center",
+    flex: 1,
+  },
+  button: {
+    alignSelf: "stretch",
+    borderRadius: radius.lg,
+  },
+  buttonContent: {
+    minHeight: size.touchTarget,
   },
   page: {
     justifyContent: "center",
